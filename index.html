@@ -114,7 +114,7 @@ function stopScan() {
 }
 
 function machineFromQr(text) {
-  var t = String(text || '').trim();
+  var t = String(text || '').replace(/^\uFEFF/, '').trim();
   try {
     var o = JSON.parse(t);
     if (o && typeof o === 'object') {
@@ -122,6 +122,9 @@ function machineFromQr(text) {
       for (var i = 0; i < k.length; i++) if (o[k[i]]) return String(o[k[i]]).trim();
     }
   } catch (e) {}
+  // สำรอง: ดึงค่า atmid จากข้อความโดยตรง (รองรับ JSON ที่ผิดรูป / เครื่องหมายคำพูดต่างชนิด)
+  var m = t.match(/atmid["'\u201C\u201D]?\s*[:=]\s*["'\u201C\u201D]?\s*([A-Za-z0-9\-_\/]+)/i);
+  if (m) return m[1];
   return t;
 }
 
@@ -139,7 +142,7 @@ function onScan(text) {
           var m = machineFromQr(text), ok = /^[A-Za-z0-9\-_\/]{1,30}$/.test(m);
           $('machine').value = ok ? m : '';
           $('machine').readOnly = ok; // อ่านจาก QR อัตโนมัติ ถ้าอ่านไม่ได้ให้กรอกเอง
-          msg('m3', ok ? '' : 'อ่านหมายเลขจาก QR ไม่ได้ กรุณากรอกเอง');
+          msg('m3', ok ? '' : 'อ่านหมายเลขจาก QR ไม่ได้ กรุณากรอกเอง [QR: ' + String(text).slice(0, 120) + ']');
           show('s3');
         });
       }
