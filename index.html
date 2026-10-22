@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check-Point</title>
+<style>
+  :root { --bg:#f4f6fa; --card:#fff; --text:#1c2430; --muted:#6a7585; --brand:#1a5fd0; --out:#d9730d; --ok:#17803d; --err:#c62828; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12161c; --card:#1c222b; --text:#e8ecf2; --muted:#98a3b3; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,"Noto Sans Thai",Sarabun,sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:480px; margin:0 auto; padding:20px 16px 40px; }
+  h1 { font-size:20px; margin:8px 0 16px; }
+  .card { background:var(--card); border-radius:14px; padding:18px; box-shadow:0 1px 4px rgba(0,0,0,.12); }
+  label { display:block; font-size:14px; color:var(--muted); margin-bottom:6px; }
+  input { width:100%; font-size:18px; padding:14px; border:1px solid #9aa6b8; border-radius:10px; background:transparent; color:var(--text); }
+  .row { display:flex; gap:10px; margin-top:16px; }
+  button { flex:1; font-size:17px; padding:15px; border:0; border-radius:10px; color:#fff; background:var(--brand); }
+  button.out { background:var(--out); }
+  button.ghost { background:transparent; color:var(--text); border:1px solid #9aa6b8; }
+  button:disabled { opacity:.5; }
+  #reader { width:100%; border-radius:10px; overflow:hidden; margin-top:10px; }
+  .msg { margin-top:14px; font-size:15px; min-height:20px; }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  .tag { display:inline-block; padding:3px 10px; border-radius:99px; color:#fff; font-size:13px; background:var(--brand); }
+  .tag.out { background:var(--out); }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ระบบ Check-Point</h1>
+
+  <!-- ขั้นที่ 1: Staff ID + เลือก Check-in / Check-out -->
+  <section id="s1" class="card">
+    <label for="staffId">Staff ID</label>
+    <input id="staffId" autocomplete="off" autocapitalize="characters" inputmode="text" maxlength="20">
+    <div class="row">
+      <button id="btnIn">Check-in</button>
+      <button id="btnOut" class="out">Check-out</button>
+    </div>
+    <div id="m1" class="msg"></div>
+  </section>
+
+  <!-- ขั้นที่ 2: สแกน QR ด้วยกล้องเท่านั้น -->
+  <section id="s2" class="card hidden">
+    <span id="tag2" class="tag"></span>
+    <p>สแกน QR Code ที่เครื่องจักร/ตู้</p>
+    <div id="reader"></div>
+    <div id="m2" class="msg"></div>
+    <div class="row"><button class="ghost" id="cancel2">ยกเลิก</button></div>
+  </section>
+
+  <!-- ขั้นที่ 3: กรอก Machine Number (แสดงได้เมื่อสแกนผ่านเท่านั้น) -->
+  <section id="s3" class="card hidden">
+    <span id="tag3" class="tag"></span>
+    <p>สแกนสำเร็จ กรุณากรอกหมายเลขตู้/เครื่องจักร</p>
+    <label for="machine">Machine Number</label>
+    <input id="machine" autocomplete="off" autocapitalize="characters" maxlength="30">
+    <div class="row">
+      <button class="ghost" id="cancel3">ยกเลิก</button>
+      <button id="submit">บันทึก</button>
+    </div>
+    <div id="m3" class="msg"></div>
+  </section>
+
+  <section id="s4" class="card hidden">
+    <p id="done" class="ok" style="font-size:18px"></p>
+    <div class="row"><button id="again">ทำรายการใหม่</button></div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+// >>> ใส่ URL ของ Apps Script Web app (ลงท้าย /exec) <<<
+var API_URL = 'https://script.google.com/macros/s/AKfycbw5k9VzK3KygccTCCY1DOfMKnVyTrkZAYTIfanNwCvaV4fNBr1oHGLTzgfVKEzeWH7nQg/exec';
+
+var state = { staffId:'', process:'', qr:'', token:'', requestId:'', scanner:null, busy:false };
+var $ = function (id) { return document.getElementById(id); };
+
+function show(id) {
+  ['s1','s2','s3','s4'].forEach(function (s) { $(s).classList.toggle('hidden', s !== id); });
+}
+function msg(id, text, cls) { var el = $(id); el.textContent = text || ''; el.className = 'msg ' + (cls || ''); }
+
+function api(payload) {
+  // text/plain เพื่อไม่ให้เกิด CORS preflight กับ Apps Script
+  return fetch(API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
+    .then(function (r) { return r.json(); });
+}
+
+function start(process) {
+  var id = $('staffId').value.trim();
+  if (!/^[A-Za-z0-9\-_]{3,20}$/.test(id)) { msg('m1', 'กรุณากรอก Staff ID ให้ถูกต้อง', 'err'); return; }
+  state.staffId = id; state.process = process;
+  var label = process === 'IN' ? 'Check-in' : 'Check-out';
+  [$('tag2'), $('tag3')].forEach(function (t) { t.textContent = label + ' • ' + id; t.className = 'tag' + (process === 'OUT' ? ' out' : ''); });
+  show('s2'); msg('m2', 'กำลังเปิดกล้อง…');
+  startScan();
+}
+
+function startScan() {
+  state.busy = false;
+  state.scanner = new Html5Qrcode('reader');
+  state.scanner.start({ facingMode:'environment' }, { fps:10, qrbox:{ width:240, height:240 } }, onScan, function () {})
+    .then(function () { msg('m2', 'กำลังสแกน… เล็งกล้องไปที่ QR Code'); })
+    .catch(function () { msg('m2', 'ไม่สามารถใช้กล้องได้ กรุณาอนุญาตการใช้กล้องแล้วลองใหม่', 'err'); });
+}
+
+function stopScan() {
+  var s = state.scanner; state.scanner = null;
+  if (!s) return Promise.resolve();
+  return s.stop().catch(function () {}).then(function () { try { s.clear(); } catch (e) {} });
+}
+
+function onScan(text) {
+  if (state.busy) return;
+  state.busy = true;
+  msg('m2', 'กำลังตรวจสอบ QR Code…');
+  api({ action:'verifyScan', staffId:state.staffId, process:state.process, qr:text })
+    .then(function (res) {
+      if (res.ok) {
+        state.qr = text; state.token = res.token;
+        state.requestId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
+        return stopScan().then(function () { $('machine').value = ''; msg('m3', ''); show('s3'); $('machine').focus(); });
+      }
+      msg('m2', res.error || 'สแกนไม่สำเร็จ กรุณาลองใหม่', 'err');
+      setTimeout(function () { state.busy = false; }, 1500);
+    })
+    .catch(function () { msg('m2', 'เชื่อมต่อไม่ได้ กรุณาลองสแกนใหม่', 'err'); setTimeout(function () { state.busy = false; }, 1500); });
+}
+
+function submit() {
+  if (state.busy) return;
+  var machine = $('machine').value.trim();
+  if (!/^[A-Za-z0-9\-_\/]{1,30}$/.test(machine)) { msg('m3', 'กรุณากรอกหมายเลขตู้/เครื่องจักรให้ถูกต้อง', 'err'); return; }
+  state.busy = true; $('submit').disabled = true; msg('m3', 'กำลังบันทึก…');
+  api({ action:'submit', staffId:state.staffId, process:state.process, qr:state.qr, token:state.token,
+        machineNumber:machine, requestId:state.requestId })
+    .then(function (res) {
+      if (res.ok) {
+        $('done').textContent = res.message || 'บันทึกสำเร็จ';
+        show('s4');
+      } else { msg('m3', res.error || 'บันทึกไม่สำเร็จ', 'err'); }
+    })
+    .catch(function () { msg('m3', 'บันทึกไม่สำเร็จ กรุณากดบันทึกอีกครั้ง', 'err'); })
+    .then(function () { state.busy = false; $('submit').disabled = false; });
+}
+
+function reset() {
+  stopScan().then(function () {
+    state.qr = ''; state.token = ''; state.requestId = ''; state.busy = false;
+    $('machine').value = ''; msg('m1', ''); show('s1');
+  });
+}
+
+$('btnIn').onclick = function () { start('IN'); };
+$('btnOut').onclick = function () { start('OUT'); };
+$('cancel2').onclick = reset;
+$('cancel3').onclick = reset;
+$('submit').onclick = submit;
+$('again').onclick = function () { $('staffId').value = ''; reset(); };
+</script>
+</body>
+</html>
