@@ -113,6 +113,18 @@ function stopScan() {
   return s.stop().catch(function () {}).then(function () { try { s.clear(); } catch (e) {} });
 }
 
+function machineFromQr(text) {
+  var t = String(text || '').trim();
+  try {
+    var o = JSON.parse(t);
+    if (o && typeof o === 'object') {
+      var k = ['machineNumber','machine','atmid','terminal','id'];
+      for (var i = 0; i < k.length; i++) if (o[k[i]]) return String(o[k[i]]).trim();
+    }
+  } catch (e) {}
+  return t;
+}
+
 function onScan(text) {
   if (state.busy) return;
   state.busy = true;
@@ -122,7 +134,14 @@ function onScan(text) {
       if (res.ok) {
         state.qr = text; state.token = res.token;
         state.requestId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
-        return stopScan().then(function () { $('machine').value = ''; msg('m3', ''); show('s3'); $('machine').focus(); });
+        state.busy = false; // ปลดสถานะ เพื่อให้กดบันทึกได้
+        return stopScan().then(function () {
+          var m = machineFromQr(text), ok = /^[A-Za-z0-9\-_\/]{1,30}$/.test(m);
+          $('machine').value = ok ? m : '';
+          $('machine').readOnly = ok; // อ่านจาก QR อัตโนมัติ ถ้าอ่านไม่ได้ให้กรอกเอง
+          msg('m3', ok ? '' : 'อ่านหมายเลขจาก QR ไม่ได้ กรุณากรอกเอง');
+          show('s3');
+        });
       }
       msg('m2', res.error || 'สแกนไม่สำเร็จ กรุณาลองใหม่', 'err');
       setTimeout(function () { state.busy = false; }, 1500);
@@ -150,7 +169,7 @@ function submit() {
 function reset() {
   stopScan().then(function () {
     state.qr = ''; state.token = ''; state.requestId = ''; state.busy = false;
-    $('machine').value = ''; msg('m1', ''); show('s1');
+    $('machine').value = ''; $('machine').readOnly = false; msg('m1', ''); show('s1');
   });
 }
 
