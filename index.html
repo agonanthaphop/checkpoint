@@ -118,7 +118,7 @@ function machineFromQr(text) {
   try {
     var o = JSON.parse(t);
     if (o && typeof o === 'object') {
-      var k = ['machineNumber','machine','atmid','terminal','id'];
+      var k = ['atmid','machineNumber','machine','terminal','id'];
       for (var i = 0; i < k.length; i++) if (o[k[i]]) return String(o[k[i]]).trim();
     }
   } catch (e) {}
