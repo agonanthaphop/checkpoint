@@ -54,9 +54,9 @@
   <!-- ขั้นที่ 3: กรอก Machine Number (แสดงได้เมื่อสแกนผ่านเท่านั้น) -->
   <section id="s3" class="card hidden">
     <span id="tag3" class="tag"></span>
-    <p>สแกนสำเร็จ กรุณากรอกหมายเลขตู้/เครื่องจักร</p>
+    <p>สแกนสำเร็จ ตรวจสอบหมายเลขเครื่อง แล้วกดบันทึก</p>
     <label for="machine">Machine Number</label>
-    <input id="machine" autocomplete="off" autocapitalize="characters" maxlength="30">
+    <input id="machine" readonly autocomplete="off" maxlength="30">
     <div class="row">
       <button class="ghost" id="cancel3">ยกเลิก</button>
       <button id="submit">บันทึก</button>
@@ -130,6 +130,11 @@ function machineFromQr(text) {
 
 function onScan(text) {
   if (state.busy) return;
+  var mc = machineFromQr(text);
+  if (!/^[A-Za-z0-9\-_\/]{1,30}$/.test(mc)) {
+    msg('m2', 'QR นี้ไม่มีหมายเลขเครื่อง (atmid) กรุณาสแกน QR ที่เครื่องจักรอีกครั้ง', 'err');
+    return;
+  }
   state.busy = true;
   msg('m2', 'กำลังตรวจสอบ QR Code…');
   api({ action:'verifyScan', staffId:state.staffId, process:state.process, qr:text })
@@ -139,10 +144,9 @@ function onScan(text) {
         state.requestId = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random());
         state.busy = false; // ปลดสถานะ เพื่อให้กดบันทึกได้
         return stopScan().then(function () {
-          var m = machineFromQr(text), ok = /^[A-Za-z0-9\-_\/]{1,30}$/.test(m);
-          $('machine').value = ok ? m : '';
-          $('machine').readOnly = ok; // อ่านจาก QR อัตโนมัติ ถ้าอ่านไม่ได้ให้กรอกเอง
-          msg('m3', ok ? '' : 'อ่านหมายเลขจาก QR ไม่ได้ กรุณากรอกเอง [QR: ' + String(text).slice(0, 120) + ']');
+          $('machine').value = mc;
+          $('machine').readOnly = true; // ห้ามกรอกเอง ใช้ค่าจาก QR เท่านั้น
+          msg('m3', '');
           show('s3');
         });
       }
@@ -172,7 +176,7 @@ function submit() {
 function reset() {
   stopScan().then(function () {
     state.qr = ''; state.token = ''; state.requestId = ''; state.busy = false;
-    $('machine').value = ''; $('machine').readOnly = false; msg('m1', ''); show('s1');
+    $('machine').value = ''; msg('m1', ''); show('s1');
   });
 }
 
