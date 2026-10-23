@@ -86,7 +86,11 @@ function msg(id, text, cls) { var el = $(id); el.textContent = text || ''; el.cl
 function api(payload) {
   // text/plain เพื่อไม่ให้เกิด CORS preflight กับ Apps Script
   return fetch(API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
-    .then(function (r) { return r.json(); });
+    .then(function (r) { return r.text(); })
+    .then(function (t) {
+      try { return JSON.parse(t); }
+      catch (e) { throw new Error('API ตอบกลับไม่ใช่ JSON (ตรวจการ Deploy / สิทธิ์ Anyone)'); }
+    });
 }
 
 function start(process) {
@@ -101,8 +105,14 @@ function start(process) {
 
 function startScan() {
   state.busy = false;
-  state.scanner = new Html5Qrcode('reader');
-  state.scanner.start({ facingMode:'environment' }, { fps:10, qrbox:{ width:240, height:240 } }, onScan, function () {})
+  var box = function (w, h) { var m = Math.floor(Math.min(w, h) * 0.85); return { width:m, height:m }; };
+  var begin = function (cfg) {
+    state.scanner = new Html5Qrcode('reader', { experimentalFeatures:{ useBarCodeDetectorIfSupported:true }, verbose:false });
+    return state.scanner.start({ facingMode:'environment' }, cfg, onScan, function () {});
+  };
+  // QR ของตู้มีข้อมูลเยอะ: ใช้ความละเอียดสูงก่อน ถ้ากล้องไม่รองรับให้ถอยกลับแบบพื้นฐาน
+  begin({ fps:15, qrbox:box, videoConstraints:{ facingMode:'environment', width:{ ideal:1920 }, height:{ ideal:1080 } } })
+    .catch(function () { return stopScan().then(function () { return begin({ fps:10, qrbox:box }); }); })
     .then(function () { msg('m2', 'กำลังสแกน… เล็งกล้องไปที่ QR Code'); })
     .catch(function () { msg('m2', 'ไม่สามารถใช้กล้องได้ กรุณาอนุญาตการใช้กล้องแล้วลองใหม่', 'err'); });
 }
@@ -132,7 +142,7 @@ function onScan(text) {
   if (state.busy) return;
   var mc = machineFromQr(text);
   if (!/^[A-Za-z0-9\-_\/]{1,30}$/.test(mc)) {
-    msg('m2', 'QR นี้ไม่มีหมายเลขเครื่อง (atmid) กรุณาสแกน QR ที่เครื่องจักรอีกครั้ง', 'err');
+    msg('m2', 'QR นี้ไม่มีหมายเลขเครื่อง (atmid) กรุณาสแกน QR ที่เครื่องจักรอีกครั้ง [' + String(text).slice(0, 60) + ']', 'err');
     return;
   }
   state.busy = true;
@@ -153,7 +163,7 @@ function onScan(text) {
       msg('m2', res.error || 'สแกนไม่สำเร็จ กรุณาลองใหม่', 'err');
       setTimeout(function () { state.busy = false; }, 1500);
     })
-    .catch(function () { msg('m2', 'เชื่อมต่อไม่ได้ กรุณาลองสแกนใหม่', 'err'); setTimeout(function () { state.busy = false; }, 1500); });
+    .catch(function (e) { msg('m2', 'เชื่อมต่อไม่ได้: ' + (e && e.message ? e.message : e), 'err'); setTimeout(function () { state.busy = false; }, 1500); });
 }
 
 function submit() {
@@ -169,7 +179,7 @@ function submit() {
         show('s4');
       } else { msg('m3', res.error || 'บันทึกไม่สำเร็จ', 'err'); }
     })
-    .catch(function () { msg('m3', 'บันทึกไม่สำเร็จ กรุณากดบันทึกอีกครั้ง', 'err'); })
+    .catch(function (e) { msg('m3', 'บันทึกไม่สำเร็จ: ' + (e && e.message ? e.message : e), 'err'); })
     .then(function () { state.busy = false; $('submit').disabled = false; });
 }
 
