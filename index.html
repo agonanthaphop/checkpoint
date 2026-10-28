@@ -96,7 +96,7 @@ var gen=0;
 function ensureCamera(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return Promise.reject({name:'NoMediaDevices'});
   return withTimeout(navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}),45000)
-    .then(function(st){st.getTracks().forEach(function(t){t.stop()})})}
+    .then(function(st){st.getTracks().forEach(function(t){t.stop()});return new Promise(function(r){setTimeout(r,700)})})}
 function withTimeout(p,ms){return new Promise(function(res,rej){var t=setTimeout(function(){rej(new Error('timeout'))},ms);
   p.then(function(v){clearTimeout(t);res(v)},function(e){clearTimeout(t);rej(e)})})}
 function startScan(elId,mode){return ensureCamera().then(function(){return startScanInner(elId,mode)})}
@@ -108,23 +108,27 @@ function startScanInner(elId,mode){
   if(typeof Html5QrcodeSupportedFormats!=='undefined'){var F=Html5QrcodeSupportedFormats;
     adv.formatsToSupport=(mode==='seal'?[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.DATA_MATRIX]:[F.QR_CODE]).filter(Boolean)}
   var cb=mode==='seal'?onSealScan:onScan;
-  var begin=function(conf,c){var sc=new Html5Qrcode(elId,conf);state.scanner=sc;
-    return sc.start({facingMode:'environment'},c,cb,function(){}).then(function(){
+  var begin=function(conf,c,cam){var sc=new Html5Qrcode(elId,conf);state.scanner=sc;
+    return sc.start(cam||{facingMode:'environment'},c,cb,function(){}).then(function(){
       if(state.scanner!==sc){sc.stop().catch(function(){});throw new Error('stale')}return sc})};
   // รอบแรก: ความละเอียดสูง; ถ้าไม่ตอบใน 8 วินาที/ล้มเหลว ถอยเป็นแบบพื้นฐาน (ไม่ตั้งความละเอียด ไม่ใช้ตัวอ่านพิเศษ)
   return withTimeout(begin(adv,{fps:15,qrbox:box,videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}}),8000)
     .catch(function(){return stopScan().then(function(){return withTimeout(begin({verbose:false},{fps:10,qrbox:box}),8000)})})
+    .catch(function(){return stopScan().then(function(){return Html5Qrcode.getCameras()}).then(function(cams){
+      if(!cams||!cams.length)throw 'ไม่พบกล้อง';
+      var back=cams.filter(function(c){return /back|rear|environment|หลัง/i.test(c.label)});
+      return withTimeout(begin({verbose:false},{fps:10,qrbox:box},(back[0]||cams[cams.length-1]).id),8000)})})
     .then(function(sc){if(my!==gen){sc.stop().catch(function(){});throw new Error('stale')}return sc})}
 function stopScan(){var s=state.scanner;state.scanner=null;if(!s)return Promise.resolve();
   return s.stop().catch(function(){}).then(function(){try{s.clear()}catch(e){}})}
-function camErr(e){var n=e&&(e.name||e.message)||'';
-  var h={NotAllowedError:'สิทธิ์กล้องถูกปิดกั้น: เปิดสิทธิ์กล้องให้เบราว์เซอร์ และเว็บนี้ในการตั้งค่าเครื่อง แล้วกด "เปิดกล้องใหม่"',
-   PermissionDeniedError:'สิทธิ์กล้องถูกปิดกั้น: เปิดสิทธิ์กล้องให้เบราว์เซอร์ แล้วกด "เปิดกล้องใหม่"',
-   NotReadableError:'กล้องถูกใช้งานอยู่: ปิดแท็บอื่น/แอปที่ใช้กล้อง แล้วกด "เปิดกล้องใหม่"',
-   NotFoundError:'ไม่พบกล้องในเครื่องนี้',
-   NoMediaDevices:'เบราว์เซอร์นี้เปิดกล้องไม่ได้ (อาจเป็นเบราว์เซอร์ในแอป) กรุณาเปิดลิงก์นี้ด้วย Chrome หรือ Safari',
-   Error:'ไม่มีการตอบสนองจากกล้อง/ไม่มีหน้าต่างขอสิทธิ์: ลองเปิดด้วย Chrome หรือเปิดสิทธิ์กล้องในตั้งค่าเครื่อง'};
-  return (h[n]||'เปิดกล้องไม่ได้')+' ['+n+']'}
+function camErr(e){var raw=typeof e==='string'?e:String(e&&(e.name||e.message)||'');
+  var tip=/NotAllowed|Permission|denied/i.test(raw)?'สิทธิ์กล้องถูกปิดกั้น: เปิดสิทธิ์กล้องให้เบราว์เซอร์/เว็บนี้ในตั้งค่าเครื่อง'
+   :/NotReadable|Could not start|in use|Starting video/i.test(raw)?'กล้องถูกใช้งานอยู่: ปิดแท็บอื่น/แอปที่ใช้กล้อง แล้วกด "เปิดกล้องใหม่"'
+   :/NotFound|ไม่พบกล้อง/i.test(raw)?'ไม่พบกล้องในเครื่องนี้'
+   :/NoMediaDevices/.test(raw)?'เบราว์เซอร์นี้เปิดกล้องไม่ได้ (อาจเป็นเบราว์เซอร์ในแอป) กรุณาเปิดด้วย Chrome หรือ Safari'
+   :/^timeout$/.test(raw)?'ไม่มีการตอบสนองจากกล้อง: ลองเปิดด้วย Chrome หรือเปิดสิทธิ์กล้องในตั้งค่าเครื่อง'
+   :'เปิดกล้องไม่ได้ ลองกด "เปิดกล้องใหม่" หรือใช้ Chrome';
+  return tip+' ['+raw.slice(0,140)+']'}
 function beginMachineScan(){msg('m2','กำลังขอสิทธิ์กล้อง… ถ้ามีหน้าต่างถาม ให้กด "อนุญาต"');
   startScan('reader','machine').then(function(){msg('m2','กำลังสแกน… เล็งกล้องไปที่ QR Code ของตู้')})
   .catch(function(e){if(e&&e.message==='stale')return;msg('m2',camErr(e),'err')})}
