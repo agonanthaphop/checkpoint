@@ -106,7 +106,7 @@ function startScanInner(elId,mode){
     :function(w,h){var m=Math.floor(Math.min(w,h)*.85);return{width:m,height:m}};
   var adv={experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false};
   if(typeof Html5QrcodeSupportedFormats!=='undefined'){var F=Html5QrcodeSupportedFormats;
-    adv.formatsToSupport=(mode==='seal'?[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.DATA_MATRIX]:[F.QR_CODE]).filter(Boolean)}
+    adv.formatsToSupport=(mode==='seal'?[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.DATA_MATRIX]:[F.QR_CODE]).filter(function(x){return x!==undefined&&x!==null})}
   var cb=mode==='seal'?onSealScan:onScan;
   var begin=function(conf,c,cam){var sc=new Html5Qrcode(elId,conf);state.scanner=sc;
     return sc.start(cam||{facingMode:'environment'},c,cb,function(){}).then(function(){
