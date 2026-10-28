@@ -92,22 +92,31 @@ function api(p){return fetch(API_URL,{method:'POST',headers:{'Content-Type':'tex
   .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){throw new Error('API ตอบกลับไม่ใช่ JSON (ตรวจการ Deploy / สิทธิ์ Anyone)')}})}
 
 /* ---- กล้อง ---- */
+var gen=0;
+function withTimeout(p,ms){return new Promise(function(res,rej){var t=setTimeout(function(){rej(new Error('timeout'))},ms);
+  p.then(function(v){clearTimeout(t);res(v)},function(e){clearTimeout(t);rej(e)})})}
 function startScan(elId,mode){
-  state.busy=false;
+  var my=++gen;state.busy=false;
   var box=mode==='seal'?function(w){var b=Math.floor(w*.9);return{width:b,height:Math.floor(b*.6)}}
     :function(w,h){var m=Math.floor(Math.min(w,h)*.85);return{width:m,height:m}};
-  var cfg={experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false};
+  var adv={experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false};
   if(typeof Html5QrcodeSupportedFormats!=='undefined'){var F=Html5QrcodeSupportedFormats;
-    cfg.formatsToSupport=(mode==='seal'?[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.DATA_MATRIX]:[F.QR_CODE]).filter(Boolean)}
+    adv.formatsToSupport=(mode==='seal'?[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.DATA_MATRIX]:[F.QR_CODE]).filter(Boolean)}
   var cb=mode==='seal'?onSealScan:onScan;
-  var begin=function(c){state.scanner=new Html5Qrcode(elId,cfg);return state.scanner.start({facingMode:'environment'},c,cb,function(){})};
-  return begin({fps:15,qrbox:box,videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}})
-    .catch(function(){return stopScan().then(function(){return begin({fps:10,qrbox:box})})})}
+  var begin=function(conf,c){var sc=new Html5Qrcode(elId,conf);state.scanner=sc;
+    return sc.start({facingMode:'environment'},c,cb,function(){}).then(function(){
+      if(state.scanner!==sc){sc.stop().catch(function(){});throw new Error('stale')}return sc})};
+  // รอบแรก: ความละเอียดสูง; ถ้าไม่ตอบใน 8 วินาที/ล้มเหลว ถอยเป็นแบบพื้นฐาน (ไม่ตั้งความละเอียด ไม่ใช้ตัวอ่านพิเศษ)
+  return withTimeout(begin(adv,{fps:15,qrbox:box,videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}}),8000)
+    .catch(function(){return stopScan().then(function(){return withTimeout(begin({verbose:false},{fps:10,qrbox:box}),8000)})})
+    .then(function(sc){if(my!==gen){sc.stop().catch(function(){});throw new Error('stale')}return sc})}
 function stopScan(){var s=state.scanner;state.scanner=null;if(!s)return Promise.resolve();
   return s.stop().catch(function(){}).then(function(){try{s.clear()}catch(e){}})}
+function camErr(e){var m=e&&(e.name||e.message)||'';
+  return 'กล้องไม่ตอบสนอง'+(m?' ('+m+')':'')+' — ปิดแท็บอื่น/แอปที่ใช้กล้อง แล้วกด "เปิดกล้องใหม่"'}
 function beginMachineScan(){msg('m2','กำลังเปิดกล้อง…');
   startScan('reader','machine').then(function(){msg('m2','กำลังสแกน… เล็งกล้องไปที่ QR Code ของตู้')})
-  .catch(function(){msg('m2','ไม่สามารถใช้กล้องได้ กรุณาอนุญาตกล้อง แล้วกด "เปิดกล้องใหม่"','err')})}
+  .catch(function(e){if(e&&e.message==='stale')return;msg('m2',camErr(e),'err')})}
 
 /* ---- อ่านค่าจาก QR ตู้ ---- */
 function machineFromQr(text){var t=String(text||'').replace(/^\uFEFF/,'').trim();
@@ -176,7 +185,7 @@ $('openDetails').onclick=openDetails;
 $('back5').onclick=function(){closeSealCam().then(function(){renderS3();show('s3')})};
 $('save3').onclick=function(){submit('m3')};$('save5').onclick=function(){submit('m5')};
 $('scanSeal').onclick=function(){if(state.seals.length>=MAX_SEALS)return;$('sealWrap').classList.remove('hidden');msg('m5s','กำลังเปิดกล้อง…');
-  startScan('sealReader','seal').then(function(){msg('m5s','สแกน Seal ทีละอัน')}).catch(function(){msg('m5s','ไม่สามารถใช้กล้องได้','err')})};
+  startScan('sealReader','seal').then(function(){msg('m5s','สแกน Seal ทีละอัน')}).catch(function(e){if(e&&e.message==='stale')return;msg('m5s',camErr(e),'err')})};
 $('stopSeal').onclick=closeSealCam;
 $('again').onclick=function(){reset(true)};
 $('staffId').oninput=function(){state.staffId=this.value.trim();persist()};
