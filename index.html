@@ -88,7 +88,6 @@ li button{flex:none;padding:4px 12px;font-size:15px;background:transparent;color
   <p id="done" class="ok" style="font-size:18px"></p>
   <div class="row"><button id="again">ทำรายการใหม่</button></div>
 </section>
-<p class="muted" id="ver" style="text-align:center;margin-top:16px"></p>
 </main>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -113,10 +112,10 @@ function api(p){return fetch(API_URL,{method:'POST',headers:{'Content-Type':'tex
   .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){throw new Error('API ตอบกลับไม่ใช่ JSON (ตรวจการ Deploy / สิทธิ์ Anyone)')}})}
 
 /* ---- เช็กเวอร์ชัน Apps Script (กัน "คำขอไม่ถูกต้อง" จาก Deploy เก่า) ---- */
+var apiStale=false,STALE='Apps Script ยังเป็นเวอร์ชันเก่า — ไปที่ Deploy > Manage deployments > แก้ไข (ดินสอ) > Version: New version > Deploy';
+function hint(){return apiStale?' ('+STALE+')':''}
 function checkApi(){fetch(API_URL).then(function(r){return r.json()}).then(function(j){
-  $('ver').textContent='API '+(j.version||'?');
-  if(j.version!==EXPECT_API)msg('m1','Apps Script ยังเป็นเวอร์ชันเก่า ('+(j.version||'?')+') — ไปที่ Deploy > Manage deployments > แก้ไข > Version: New version > Deploy','err')
-}).catch(function(){})}
+  if(j.version!==EXPECT_API){apiStale=true;msg('m1',STALE,'err')}}).catch(function(){})}
 
 /* ---- กล้อง ---- */
 var gen=0;
@@ -193,7 +192,7 @@ function onScan(text){
       state.machine=mc;state.location=locFromQr(text);
       state.requestId=crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random();state.busy=false;
       return stopScan().then(function(){renderS3();show('s3')})}
-    msg('m2',res.error||'สแกนไม่สำเร็จ กรุณาลองใหม่','err');setTimeout(function(){state.busy=false},1500)})
+    msg('m2',(res.error||'สแกนไม่สำเร็จ กรุณาลองใหม่')+hint(),'err');setTimeout(function(){state.busy=false},1500)})
   .catch(function(e){msg('m2','เชื่อมต่อไม่ได้: '+(e&&e.message?e.message:e),'err');setTimeout(function(){state.busy=false},1500)})}
 function renderS3(){$('machineBig').textContent=state.machine;$('locText').textContent=state.location;
   var out=state.process==='OUT';$('detailsRow').classList.toggle('hidden',!out);
@@ -240,7 +239,7 @@ function submit(mid){
   .then(function(res){if(res.ok){
       $('done').textContent=res.duplicate?'รายการนี้บันทึกไว้แล้ว':'บันทึก '+(state.process==='IN'?'Check-in':'Check-out')+' ตู้ '+state.machine+(res.time?' เวลา '+res.time:'')+' สำเร็จ';
       show('s4')}
-    else msg(mid,res.error||'บันทึกไม่สำเร็จ','err')})
+    else msg(mid,(res.error||'บันทึกไม่สำเร็จ')+hint(),'err')})
   .catch(function(e){msg(mid,'บันทึกไม่สำเร็จ: '+(e&&e.message?e.message:e),'err')})
   .then(function(){state.busy=false;$('save3').disabled=$('save5').disabled=false})}
 
