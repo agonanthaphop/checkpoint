@@ -22,6 +22,7 @@ li button{flex:none;padding:4px 12px;font-size:15px;background:transparent;color
 .pair{font-weight:600}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
 .modal .card{width:100%;max-width:360px}
+.modal.hidden{display:none}
 </style></head><body><main>
 <h1>ระบบ Check-Point</h1>
 
@@ -70,9 +71,9 @@ li button{flex:none;padding:4px 12px;font-size:15px;background:transparent;color
 
   <div class="sec">
     <h2>Reject</h2>
-    <p class="muted" style="margin:0">เลือกชนิด แล้วสแกน Seal 1 ถุง จะมีหน้าต่างให้กรอกจำนวนใบ</p>
+    <p class="muted" style="margin:0">เลือกชนิด แล้วเลือกชนิด กล้องจะเปิดให้สแกน Seal ทันที สแกน 1 ถุงแล้วจะมีหน้าต่างให้กรอกจำนวนใบ</p>
     <label for="rejSel">ชนิด Denom</label>
-    <select id="rejSel"><option value="1000">1,000</option><option value="500">500</option><option value="100">100</option></select>
+    <select id="rejSel"><option value="">— เลือกชนิด —</option><option value="1000">1,000</option><option value="500">500</option><option value="100">100</option></select>
     <ul id="rejList"></ul>
     <button class="ghost" id="scanRej" style="width:100%">สแกน Seal Reject</button>
     <div id="rejWrap" class="hidden"><div id="rejReader" class="reader"></div>
@@ -103,7 +104,7 @@ li button{flex:none;padding:4px 12px;font-size:15px;background:transparent;color
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
-var API_URL='https://script.google.com/macros/s/AKfycbz61_D8OI-KfRnNIVGc09O5lR4yCPOLzsrTsISgImTMJJUmVor2zqfNlVfpoxXOwMl7lw/exec';
+var API_URL='https://script.google.com/macros/s/AKfycbzZ1GECAcDjqvRaC171fX-pL4XUHYRzF3C4vtpsbd8dFEoTb5MnMfY-q0tntlbZ2GKwqw/exec';
 var EXPECT_API='v10-in-out';
 var KEY='checkpoint.session.v2',SESSION_MS=12*36e5,TOKEN_MS=5*36e5,MAX_DENOM_SEALS=20,DENOMS=[1000,500,100];
 var STAFF_RE=/^[A-Za-z0-9\-_]{3,20}$/,MACHINE_RE=/^[A-Za-z0-9\-_\/]{1,30}$/,SEAL_RE=/^[A-Za-z0-9\-_\/.]{1,40}$/;
@@ -241,10 +242,11 @@ function onRejScan(text){var v=String(text||'').trim();
   if(sealDebounce(v))return;
   if(!sealOk(v)){msg('m5r','อ่านค่า Seal ไม่ได้หรือรูปแบบไม่ถูกต้อง ลองสแกนใหม่','err');return}
   var d=parseInt($('rejSel').value,10);
+  if(!d){msg('m5r','เลือกชนิดธนบัตรก่อน','err');return}
   if(state.rejSeals.some(function(e){return e.denom===d&&e.seal===v})){msg('m5r','Seal นี้สแกนแล้ว','err');return}
   if(state.rejSeals.length>=MAX_DENOM_SEALS)return;
   state.rejPendingSeal={denom:d,seal:v};vibe();
-  $('qtyInfo').textContent=d.toLocaleString('en-US')+' : '+v;$('qtyInput').value='';msg('qtyMsg');
+  $('qtyInfo').textContent='ชนิด '+d.toLocaleString('en-US')+' | Seal: '+v;$('qtyInput').value='';msg('qtyMsg');
   $('qtyModal').classList.remove('hidden');setTimeout(function(){$('qtyInput').focus()},50)}
 function qtyClose(){$('qtyModal').classList.add('hidden');state.rejPendingSeal=null}
 function qtyOk(){var p=state.rejPendingSeal;if(!p){qtyClose();return}
@@ -285,10 +287,14 @@ $('scanDenom').onclick=function(){if(state.denomSeals.length>=MAX_DENOM_SEALS)re
   closeSealCam().then(function(){$('denomWrap').classList.remove('hidden');msg('m5d','กำลังเปิดกล้อง…');
     return startScan('denomReader','denom')}).then(function(){msg('m5d','สแกน Seal เก่าก่อน แล้วตามด้วย Seal ใหม่')})
   .catch(function(e){if(e&&e.message==='stale')return;msg('m5d',camErr(e),'err')})};
-$('scanRej').onclick=function(){if(state.rejSeals.length>=MAX_DENOM_SEALS)return;
+function startRejScan(){
+  if(!parseInt($('rejSel').value,10)){msg('m5r','เลือกชนิดธนบัตรก่อน','err');return}
+  if(state.rejSeals.length>=MAX_DENOM_SEALS)return;
   closeSealCam().then(function(){$('rejWrap').classList.remove('hidden');msg('m5r','กำลังเปิดกล้อง…');
-    return startScan('rejReader','reject')}).then(function(){msg('m5r','สแกน Seal ถุง Reject ทีละถุง')})
-  .catch(function(e){if(e&&e.message==='stale')return;msg('m5r',camErr(e),'err')})};
+    return startScan('rejReader','reject')}).then(function(){msg('m5r','สแกน Seal ถุง Reject แล้วกรอกจำนวนใบ')})
+  .catch(function(e){if(e&&e.message==='stale')return;msg('m5r',camErr(e),'err')})}
+$('scanRej').onclick=startRejScan;
+$('rejSel').onchange=function(){if(this.value)startRejScan();else closeSealCam()};
 $('stopDenom').onclick=$('stopRej').onclick=closeSealCam;
 $('qtyOk').onclick=qtyOk;$('qtyCancel').onclick=qtyClose;
 $('qtyInput').oninput=function(){this.value=this.value.replace(/\D/g,'').slice(0,5)};
