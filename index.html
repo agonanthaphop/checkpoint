@@ -4,7 +4,7 @@
 :root{--bg:#f4f6fa;--card:#fff;--text:#1c2430;--muted:#6a7585;--brand:#1a5fd0;--out:#d9730d;--ok:#17803d;--err:#c62828}
 @media(prefers-color-scheme:dark){:root{--bg:#12161c;--card:#1c222b;--text:#e8ecf2;--muted:#98a3b3}}
 *{box-sizing:border-box}body{margin:0;font-family:-apple-system,"Noto Sans Thai",Sarabun,sans-serif;background:var(--bg);color:var(--text)}
-main{max-width:480px;margin:0 auto;padding:20px 16px 40px}h1{font-size:20px;margin:8px 0 16px}
+main{max-width:480px;margin:0 auto;padding:20px 16px 40px}h1{font-size:20px;margin:8px 0 16px}h2{font-size:17px;margin:0 0 6px}
 .card{background:var(--card);border-radius:14px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
 label{display:block;font-size:14px;color:var(--muted);margin:14px 0 6px}
 input,textarea,select{width:100%;font:inherit;font-size:18px;padding:12px;border:1px solid #9aa6b8;border-radius:10px;background:transparent;color:var(--text)}
@@ -15,9 +15,11 @@ button.out{background:var(--out)}button.ghost{background:transparent;color:var(-
 .msg{margin-top:12px;font-size:15px;min-height:20px}.ok{color:var(--ok)}.err{color:var(--err)}.muted{color:var(--muted);font-size:14px}
 .tag{display:inline-block;padding:3px 10px;border-radius:99px;color:#fff;font-size:13px;background:var(--brand)}.tag.out{background:var(--out)}
 .big{font-size:40px;font-weight:700;margin:10px 0 2px;letter-spacing:1px}.hidden{display:none}option{color:#000}
-ul{list-style:none;padding:0;margin:8px 0}li{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #9aa6b855}
+ul{list-style:none;padding:0;margin:8px 0}li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #9aa6b855;word-break:break-all}
 li button{flex:none;padding:4px 12px;font-size:15px;background:transparent;color:var(--err);border:1px solid var(--err)}
 .n{display:flex;align-items:center;gap:10px;margin-top:8px}.n span{width:70px}.n input{flex:1}
+.sec{margin-top:22px;padding-top:16px;border-top:1px solid #9aa6b855}.sec:first-of-type{margin-top:12px}
+.pair{font-weight:600}
 </style></head><body><main>
 <h1>ระบบ Check-Point</h1>
 
@@ -42,30 +44,46 @@ li button{flex:none;padding:4px 12px;font-size:15px;background:transparent;color
   <div id="machineBig" class="big"></div>
   <div id="locText" class="muted"></div>
   <div class="row"><button class="ghost" id="cancel3">ยกเลิก</button><button id="save3">บันทึก</button></div>
-  <div class="row"><button class="ghost" id="openDetails">+ เพิ่มรายละเอียด (ไม่บังคับ)</button></div>
+  <div class="row hidden" id="detailsRow"><button class="ghost" id="openDetails">+ Seal Denom / Reject (ไม่บังคับ)</button></div>
   <div id="m3" class="msg"></div>
 </section>
 
+<!-- รายละเอียด Check-out: Denom + Reject (บันทึกครั้งเดียวพร้อมรายการ) -->
 <section id="s5" class="card hidden">
   <span id="tag5" class="tag"></span>
-  <div id="savedBanner" class="ok hidden" style="margin:10px 0 4px"></div>
-  <p class="muted">รายละเอียดเพิ่มเติม (ข้ามได้ ไม่กรอกก็บันทึกได้)</p>
-  <label style="margin-top:0">Seal (สแกนได้สูงสุด 5)</label>
-  <ul id="sealList"></ul>
-  <button class="ghost" id="scanSeal" style="width:100%">สแกน Seal</button>
-  <div id="sealWrap" class="hidden"><div id="sealReader" class="reader"></div>
-    <div class="row"><button class="ghost" id="stopSeal">ปิดกล้อง</button></div></div>
-  <div id="m5s" class="msg"></div>
-  <label for="repairType">ประเภทงาน</label>
-  <select id="repairType"><option value="">— เลือก —</option><option value="FLM">FLM</option><option value="SLM">SLM</option><option value="PM">PM</option></select>
-  <label for="repair">รายละเอียดการซ่อม</label>
-  <textarea id="repair" rows="3" maxlength="500"></textarea>
-  <label>จำนวนธนบัตร (ใบ)</label>
-  <div class="n"><span>1,000</span><input id="n1000" inputmode="numeric" placeholder="0"></div>
-  <div class="n"><span>500</span><input id="n500" inputmode="numeric" placeholder="0"></div>
-  <div class="n"><span>100</span><input id="n100" inputmode="numeric" placeholder="0"></div>
-  <p>รวม <b id="totalAmt">฿0</b></p>
-  <div class="row"><button class="ghost" id="back5">กลับ</button><button id="save5">บันทึก</button></div>
+
+  <div class="sec">
+    <h2>Denom</h2>
+    <p class="muted" style="margin:0">เลือกชนิด แล้วสแกน Seal 2 ครั้ง: Seal เก่าก่อน แล้วตามด้วย Seal ใหม่ (เก็บเป็น เก่า//ใหม่)</p>
+    <label for="denomSel">ชนิด Denom</label>
+    <select id="denomSel"><option value="1000">1,000</option><option value="500">500</option><option value="100">100</option></select>
+    <ul id="denomList"></ul>
+    <button class="ghost" id="scanDenom" style="width:100%">สแกน Seal (เก่า แล้วใหม่)</button>
+    <div id="denomWrap" class="hidden"><div id="denomReader" class="reader"></div>
+      <div class="row"><button class="ghost" id="stopDenom">ปิดกล้อง</button></div></div>
+    <div id="m5d" class="msg"></div>
+    <label for="denomNote">รายละเอียด Denom</label>
+    <textarea id="denomNote" rows="2" maxlength="500"></textarea>
+  </div>
+
+  <div class="sec">
+    <h2>Reject</h2>
+    <label style="margin-top:0">Seal ถุง Reject (สแกน 2 ครั้ง: เก่า แล้วใหม่)</label>
+    <ul id="rejList"></ul>
+    <button class="ghost" id="scanRej" style="width:100%">สแกน Seal ถุง Reject</button>
+    <div id="rejWrap" class="hidden"><div id="rejReader" class="reader"></div>
+      <div class="row"><button class="ghost" id="stopRej">ปิดกล้อง</button></div></div>
+    <div id="m5r" class="msg"></div>
+    <label>จำนวนธนบัตร Reject (ใบ)</label>
+    <div class="n"><span>1,000</span><input id="n1000" inputmode="numeric" placeholder="0"></div>
+    <div class="n"><span>500</span><input id="n500" inputmode="numeric" placeholder="0"></div>
+    <div class="n"><span>100</span><input id="n100" inputmode="numeric" placeholder="0"></div>
+    <p>รวม <b id="totalAmt">฿0</b></p>
+    <label for="rejNote">รายละเอียด Reject</label>
+    <textarea id="rejNote" rows="2" maxlength="500"></textarea>
+  </div>
+
+  <div class="row"><button class="ghost" id="back5">กลับ</button><button id="save5">บันทึก Check-out</button></div>
   <div id="m5" class="msg"></div>
 </section>
 
@@ -73,16 +91,19 @@ li button{flex:none;padding:4px 12px;font-size:15px;background:transparent;color
   <p id="done" class="ok" style="font-size:18px"></p>
   <div class="row"><button id="again">ทำรายการใหม่</button></div>
 </section>
+<p class="muted" id="ver" style="text-align:center;margin-top:16px"></p>
 </main>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script>
 var API_URL='https://script.google.com/macros/s/AKfycbyEWLsDrocdN77Bnexyi6Zaj5KPWnrdz4s9SL_2zz0Nr6v1mJjAaqcNbmx9Sy8iWJo9Mg/exec';
-var KEY='checkpoint.session.v1',SESSION_MS=12*36e5,TOKEN_MS=5*36e5,MAX_SEALS=5,DENOMS=[1000,500,100];
+var EXPECT_API='v10-in-out';
+var KEY='checkpoint.session.v2',SESSION_MS=12*36e5,TOKEN_MS=5*36e5,MAX_DENOM_SEALS=20,DENOMS=[1000,500,100];
 var STAFF_RE=/^[A-Za-z0-9\-_]{3,20}$/,MACHINE_RE=/^[A-Za-z0-9\-_\/]{1,30}$/,SEAL_RE=/^[A-Za-z0-9\-_\/.]{1,40}$/;
 var $=function(i){return document.getElementById(i)};
-var state={step:'s1',staffId:'',process:'',qr:'',token:'',tokenTs:0,requestId:'',machine:'',location:'',seals:[],repairType:'',saved:null,repair:'',notes:{},scanner:null,busy:false,lastSeal:'',lastAt:0};
-var SAVED=['step','staffId','process','qr','token','tokenTs','requestId','machine','location','seals','repairType','saved','repair','notes'];
+var state={step:'s1',staffId:'',process:'',qr:'',token:'',tokenTs:0,requestId:'',machine:'',location:'',
+  denomSeals:[],denomPending:null,denomNote:'',rejOld:'',rejNew:'',rejNotes:{},rejNote:'',scanner:null,busy:false,lastSeal:'',lastAt:0};
+var SAVED=['step','staffId','process','qr','token','tokenTs','requestId','machine','location','denomSeals','denomPending','denomNote','rejOld','rejNew','rejNotes','rejNote'];
 
 /* ---- session: เก็บในเครื่อง รีเฟรชแล้วกลับมาขั้นเดิม ---- */
 function persist(){try{if(state.step==='s4'){localStorage.removeItem(KEY);return}
@@ -93,6 +114,12 @@ function setTags(){var l=state.process==='IN'?'Check-in':'Check-out';
   ['tag2','tag3','tag5'].forEach(function(i){var t=$(i);t.textContent=l+' • '+state.staffId;t.className='tag'+(state.process==='OUT'?' out':'')})}
 function api(p){return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(p)})
   .then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){throw new Error('API ตอบกลับไม่ใช่ JSON (ตรวจการ Deploy / สิทธิ์ Anyone)')}})}
+
+/* ---- เช็กเวอร์ชัน Apps Script (กัน "คำขอไม่ถูกต้อง" จาก Deploy เก่า) ---- */
+function checkApi(){fetch(API_URL).then(function(r){return r.json()}).then(function(j){
+  $('ver').textContent='API '+(j.version||'?');
+  if(j.version!==EXPECT_API)msg('m1','Apps Script ยังเป็นเวอร์ชันเก่า ('+(j.version||'?')+') — ไปที่ Deploy > Manage deployments > แก้ไข > Version: New version > Deploy','err')
+}).catch(function(){})}
 
 /* ---- กล้อง ---- */
 var gen=0;
@@ -105,16 +132,17 @@ function withTimeout(p,ms){return new Promise(function(res,rej){var t=setTimeout
 function startScan(elId,mode){return ensureCamera().then(function(){return startScanInner(elId,mode)})}
 function startScanInner(elId,mode){
   var my=++gen;state.busy=false;
-  var box=mode==='seal'?function(w){var b=Math.floor(w*.9);return{width:b,height:Math.floor(b*.6)}}
+  var isSeal=mode!=='machine';
+  var box=isSeal?function(w){var b=Math.floor(w*.9);return{width:b,height:Math.floor(b*.6)}}
     :function(w,h){var m=Math.floor(Math.min(w,h)*.85);return{width:m,height:m}};
   var adv={experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false};
   if(typeof Html5QrcodeSupportedFormats!=='undefined'){var F=Html5QrcodeSupportedFormats;
-    adv.formatsToSupport=(mode==='seal'?[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.DATA_MATRIX]:[F.QR_CODE]).filter(function(x){return x!==undefined&&x!==null})}
-  var cb=mode==='seal'?onSealScan:onScan;
+    adv.formatsToSupport=(isSeal?[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.DATA_MATRIX]:[F.QR_CODE]).filter(function(x){return x!==undefined&&x!==null})}
+  var cb=mode==='denom'?onDenomScan:mode==='reject'?onRejScan:onScan;
   var begin=function(conf,c,cam){var sc=new Html5Qrcode(elId,conf);state.scanner=sc;
     return sc.start(cam||{facingMode:'environment'},c,cb,function(){}).then(function(){
       if(state.scanner!==sc){sc.stop().catch(function(){});throw new Error('stale')}return sc})};
-  // รอบแรก: ความละเอียดสูง; ถ้าไม่ตอบใน 8 วินาที/ล้มเหลว ถอยเป็นแบบพื้นฐาน (ไม่ตั้งความละเอียด ไม่ใช้ตัวอ่านพิเศษ)
+  // รอบแรก: ความละเอียดสูง; ถ้าไม่ตอบใน 8 วินาที/ล้มเหลว ถอยเป็นแบบพื้นฐาน
   return withTimeout(begin(adv,{fps:15,qrbox:box,videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}}),8000)
     .catch(function(){return stopScan().then(function(){return withTimeout(begin({verbose:false},{fps:10,qrbox:box}),8000)})})
     .catch(function(){return stopScan().then(function(){return Html5Qrcode.getCameras()}).then(function(cams){
@@ -143,14 +171,19 @@ function machineFromQr(text){var t=String(text||'').replace(/^\uFEFF/,'').trim()
   var m=t.match(/atmid["'\u201C\u201D]?\s*[:=]\s*["'\u201C\u201D]?\s*([A-Za-z0-9\-_\/]+)/i);return m?m[1]:t}
 function locFromQr(text){var m=String(text||'').match(/"location"\s*:\s*"([^"]*)"/);return m?m[1].replace(/\s+/g,' ').trim():''}
 
+/* ---- Seal: สแกน 2 ครั้ง (เก่า แล้วใหม่) เก็บเป็น เก่า//ใหม่ ---- */
+function sealOk(v){return SEAL_RE.test(v)&&!/^\/|\/$|\/\//.test(v)}
+
 /* ---- ขั้นตอน ---- */
 function start(process){
   var id=$('staffId').value.trim();
   if(!STAFF_RE.test(id)){msg('m1','กรุณากรอก Staff ID ให้ถูกต้อง','err');return}
   clearData();state.staffId=id;state.process=process;setTags();show('s2');beginMachineScan()}
 function clearData(){state.qr=state.token='';state.tokenTs=0;state.requestId=state.machine=state.location='';
-  state.seals=[];state.repair='';state.repairType='';state.saved=null;state.notes={};$('repair').value='';$('repairType').value='';$('savedBanner').classList.add('hidden');DENOMS.forEach(function(d){$('n'+d).value=''});
-  $('sealWrap').classList.add('hidden');msg('m3');msg('m5');msg('m5s');renderSeals();updateTotal()}
+  state.denomSeals=[];state.denomPending=null;state.denomNote='';state.rejOld=state.rejNew='';state.rejNote='';state.rejNotes={};
+  $('denomNote').value=$('rejNote').value='';$('denomSel').selectedIndex=0;DENOMS.forEach(function(d){$('n'+d).value=''});
+  $('denomWrap').classList.add('hidden');$('rejWrap').classList.add('hidden');
+  msg('m3');msg('m5');msg('m5d');msg('m5r');renderDenoms();renderRej();updateTotal()}
 function reset(clearStaff){stopScan().then(function(){clearData();state.busy=false;
   if(clearStaff){state.staffId='';$('staffId').value=''}msg('m1');show('s1')})}
 
@@ -165,81 +198,103 @@ function onScan(text){
       return stopScan().then(function(){renderS3();show('s3')})}
     msg('m2',res.error||'สแกนไม่สำเร็จ กรุณาลองใหม่','err');setTimeout(function(){state.busy=false},1500)})
   .catch(function(e){msg('m2','เชื่อมต่อไม่ได้: '+(e&&e.message?e.message:e),'err');setTimeout(function(){state.busy=false},1500)})}
-function renderS3(){$('machineBig').textContent=state.machine;$('locText').textContent=state.location}
+function renderS3(){$('machineBig').textContent=state.machine;$('locText').textContent=state.location;
+  var out=state.process==='OUT';$('detailsRow').classList.toggle('hidden',!out);
+  $('save3').textContent=out?'บันทึก (ไม่มีรายละเอียด)':'บันทึก'}
 
-/* ---- รายละเอียดเพิ่มเติม: Seal / ซ่อม / ธนบัตร ---- */
-function renderSeals(){var ul=$('sealList');ul.innerHTML='';
-  state.seals.forEach(function(v,i){var li=document.createElement('li'),sp=document.createElement('span'),b=document.createElement('button');
-    sp.textContent=(i+1)+'. '+v;b.textContent='ลบ';b.onclick=function(){state.seals.splice(i,1);renderSeals();persist()};li.appendChild(sp);li.appendChild(b);ul.appendChild(li)});
-  $('scanSeal').disabled=state.seals.length>=MAX_SEALS}
-function onSealScan(text){var v=String(text||'').trim(),now=Date.now();
-  if(v===state.lastSeal&&now-state.lastAt<2500)return;state.lastSeal=v;state.lastAt=now;
-  if(!SEAL_RE.test(v)){msg('m5s','อ่านค่า Seal ไม่ได้หรือรูปแบบไม่ถูกต้อง ลองสแกนใหม่','err');return}
-  if(state.seals.indexOf(v)>=0){msg('m5s','Seal นี้สแกนแล้ว','err');return}
-  if(state.seals.length>=MAX_SEALS)return;
-  state.seals.push(v);renderSeals();persist();try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}
-  if(state.seals.length>=MAX_SEALS){msg('m5s','ครบ '+MAX_SEALS+' Seal แล้ว','ok');closeSealCam()}else msg('m5s','เพิ่ม Seal ที่ '+state.seals.length+': '+v,'ok')}
-function closeSealCam(){return stopScan().then(function(){$('sealWrap').classList.add('hidden')})}
-function openDetails(){$('repair').value=state.repair;$('repairType').value=state.repairType;
-  DENOMS.forEach(function(d){$('n'+d).value=state.notes['n'+d]||''});renderSeals();updateTotal();
-  var sv=state.saved,bn=$('savedBanner');bn.classList.toggle('hidden',!sv);
-  if(sv)bn.textContent='บันทึก '+(state.process==='IN'?'Check-in':'Check-out')+' ตู้ '+state.machine+(sv.time?' เวลา '+sv.time:'')+' สำเร็จ — กรอกรายละเอียดต่อได้ แล้วกด "บันทึกรายละเอียด"';
-  $('save5').textContent=sv?'บันทึกรายละเอียด':'บันทึก';$('back5').textContent=sv?'เสร็จสิ้น':'กลับ';show('s5')}
-function updateTotal(){var t=0;DENOMS.forEach(function(d){t+=d*(parseInt(state.notes['n'+d],10)||0)});$('totalAmt').textContent='฿'+t.toLocaleString('en-US')}
+/* ---- Check-out: Denom / Reject ---- */
+function liRow(text,onDel){var li=document.createElement('li'),sp=document.createElement('span'),b=document.createElement('button');
+  sp.textContent=text;sp.className='pair';b.textContent='ลบ';b.onclick=onDel;li.appendChild(sp);li.appendChild(b);return li}
+function renderDenoms(){var ul=$('denomList');ul.innerHTML='';
+  state.denomSeals.forEach(function(e,i){ul.appendChild(liRow((i+1)+'. '+Number(e.denom).toLocaleString('en-US')+' : '+e.oldSeal+'//'+e.newSeal,
+    function(){state.denomSeals.splice(i,1);renderDenoms();persist()}))});
+  var p=state.denomPending;
+  if(p)ul.appendChild(liRow(Number(p.denom).toLocaleString('en-US')+' : '+p.oldSeal+'// … (รอสแกน Seal ใหม่)',function(){state.denomPending=null;renderDenoms();persist();msg('m5d')}));
+  $('scanDenom').disabled=state.denomSeals.length>=MAX_DENOM_SEALS}
+function renderRej(){var ul=$('rejList');ul.innerHTML='';
+  if(state.rejOld)ul.appendChild(liRow(state.rejOld+'//'+(state.rejNew||' … (รอสแกน Seal ใหม่)'),function(){state.rejOld=state.rejNew='';renderRej();persist();msg('m5r')}));
+  $('scanRej').textContent=state.rejOld&&state.rejNew?'สแกน Seal ถุง Reject ใหม่':state.rejOld?'สแกน Seal ใหม่ ต่อ':'สแกน Seal ถุง Reject'}
+function sealDebounce(v){var now=Date.now();if(v===state.lastSeal&&now-state.lastAt<2500)return true;state.lastSeal=v;state.lastAt=now;return false}
+function vibe(){try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}
+function onDenomScan(text){var v=String(text||'').trim();if(sealDebounce(v))return;
+  if(!sealOk(v)){msg('m5d','อ่านค่า Seal ไม่ได้หรือรูปแบบไม่ถูกต้อง ลองสแกนใหม่','err');return}
+  var p=state.denomPending;
+  if(!p){state.denomPending={denom:parseInt($('denomSel').value,10),oldSeal:v};renderDenoms();persist();vibe();
+    msg('m5d','Seal เก่า: '+v+' — สแกนครั้งที่ 2: Seal ใหม่','ok');return}
+  if(v===p.oldSeal){msg('m5d','Seal ใหม่ซ้ำกับ Seal เก่า กรุณาสแกน Seal ใหม่','err');return}
+  if(state.denomSeals.length>=MAX_DENOM_SEALS)return;
+  state.denomSeals.push({denom:p.denom,oldSeal:p.oldSeal,newSeal:v});state.denomPending=null;renderDenoms();persist();vibe();
+  msg('m5d','เพิ่ม '+p.denom.toLocaleString('en-US')+': '+p.oldSeal+'//'+v+' (สแกนต่อ หรือกด "ปิดกล้อง")','ok')}
+function onRejScan(text){var v=String(text||'').trim();if(sealDebounce(v))return;
+  if(!sealOk(v)){msg('m5r','อ่านค่า Seal ไม่ได้หรือรูปแบบไม่ถูกต้อง ลองสแกนใหม่','err');return}
+  if(!state.rejOld||state.rejNew){state.rejOld=v;state.rejNew='';renderRej();persist();vibe();msg('m5r','Seal เก่า: '+v+' — สแกนครั้งที่ 2: Seal ใหม่','ok');return}
+  if(v===state.rejOld){msg('m5r','Seal ใหม่ซ้ำกับ Seal เก่า กรุณาสแกน Seal ใหม่','err');return}
+  state.rejNew=v;renderRej();persist();vibe();msg('m5r','สแกน Seal ถุง Reject ครบแล้ว','ok');closeSealCam()}
+function closeSealCam(){return stopScan().then(function(){$('denomWrap').classList.add('hidden');$('rejWrap').classList.add('hidden')})}
+function openDetails(){$('denomNote').value=state.denomNote;$('rejNote').value=state.rejNote;
+  DENOMS.forEach(function(d){$('n'+d).value=state.rejNotes['n'+d]||''});renderDenoms();renderRej();updateTotal();show('s5')}
+function updateTotal(){var t=0;DENOMS.forEach(function(d){t+=d*(parseInt(state.rejNotes['n'+d],10)||0)});$('totalAmt').textContent='฿'+t.toLocaleString('en-US')}
 
-/* ---- บันทึก ---- */
+/* ---- บันทึก (ครั้งเดียว: Check-in ไป Scan-in / Check-out ไป Scan-out) ---- */
 function submit(mid){
   if(state.busy)return;
   if(!MACHINE_RE.test(state.machine)||!state.token||Date.now()-state.tokenTs>TOKEN_MS){
     stopScan().then(function(){clearData();show('s2');beginMachineScan();msg('m2','หมดเวลา กรุณาสแกน QR ของตู้ใหม่','err')});return}
+  if(state.process==='OUT'&&mid==='m5'&&(state.denomPending||(state.rejOld&&!state.rejNew))){msg(mid,'สแกน Seal ใหม่ให้ครบก่อนบันทึก (หรือกด "ลบ" ที่รายการที่ค้างอยู่)','err');return}
+  var p={action:'submit',staffId:state.staffId,process:state.process,qr:state.qr,token:state.token,requestId:state.requestId};
+  if(state.process==='OUT'&&mid==='m5'){
+    p.denomSeals=state.denomSeals;p.denomNote=state.denomNote.trim();
+    p.reject={oldSeal:state.rejOld,newSeal:state.rejNew,n1000:state.rejNotes.n1000||'',n500:state.rejNotes.n500||'',n100:state.rejNotes.n100||'',note:state.rejNote.trim()}}
   state.busy=true;$('save3').disabled=$('save5').disabled=true;msg(mid,'กำลังบันทึก…');
-  closeSealCam().then(function(){return api({action:'submit',staffId:state.staffId,process:state.process,qr:state.qr,token:state.token,
-    requestId:state.requestId,seals:state.seals,repairType:state.repairType,repair:state.repair.trim(),notes:state.notes})})
-  .then(function(res){if(res.ok){state.saved={time:res.time||''};openDetails();msg('m5',res.duplicate?'รายการนี้บันทึกไว้แล้ว':'บันทึกสำเร็จ','ok')}else msg(mid,res.error||'บันทึกไม่สำเร็จ','err')})
+  closeSealCam().then(function(){return api(p)})
+  .then(function(res){if(res.ok){
+      $('done').textContent=res.duplicate?'รายการนี้บันทึกไว้แล้ว':'บันทึก '+(state.process==='IN'?'Check-in':'Check-out')+' ตู้ '+state.machine+(res.time?' เวลา '+res.time:'')+' สำเร็จ';
+      show('s4')}
+    else msg(mid,res.error||'บันทึกไม่สำเร็จ','err')})
   .catch(function(e){msg(mid,'บันทึกไม่สำเร็จ: '+(e&&e.message?e.message:e),'err')})
   .then(function(){state.busy=false;$('save3').disabled=$('save5').disabled=false})}
-
-function updateDetails(){
-  if(state.busy)return;
-  if(!state.token||Date.now()-state.tokenTs>TOKEN_MS){msg('m5','หมดเวลา 5 ชั่วโมงแล้ว บันทึกรายละเอียดเพิ่มไม่ได้','err');return}
-  state.busy=true;$('save5').disabled=true;msg('m5','กำลังบันทึก…');
-  closeSealCam().then(function(){return api({action:'updateDetails',staffId:state.staffId,process:state.process,qr:state.qr,token:state.token,
-    requestId:state.requestId,seals:state.seals,repairType:state.repairType,repair:state.repair.trim(),notes:state.notes})})
-  .then(function(res){if(res.ok)msg('m5','บันทึกรายละเอียดแล้ว'+(res.time?' ('+res.time+')':''),'ok');else msg('m5',res.error||'บันทึกไม่สำเร็จ','err')})
-  .catch(function(e){msg('m5','บันทึกไม่สำเร็จ: '+(e&&e.message?e.message:e),'err')})
-  .then(function(){state.busy=false;$('save5').disabled=false})}
 
 /* ---- ปุ่ม/ช่องกรอก ---- */
 $('btnIn').onclick=function(){start('IN')};$('btnOut').onclick=function(){start('OUT')};
 $('cancel2').onclick=$('cancel3').onclick=function(){reset(false)};
 $('retry2').onclick=function(){stopScan().then(beginMachineScan)};
 $('openDetails').onclick=openDetails;
-$('back5').onclick=function(){if(state.saved){if(confirm('จบรายการ? รายละเอียดที่ยังไม่ได้กด "บันทึกรายละเอียด" จะหายไป'))reset(true);return}closeSealCam().then(function(){renderS3();show('s3')})};
-$('save3').onclick=function(){submit('m3')};$('save5').onclick=function(){if(state.saved)updateDetails();else submit('m5')};
-$('repairType').onchange=function(){state.repairType=this.value;persist()};
-$('scanSeal').onclick=function(){if(state.seals.length>=MAX_SEALS)return;$('sealWrap').classList.remove('hidden');msg('m5s','กำลังเปิดกล้อง…');
-  startScan('sealReader','seal').then(function(){msg('m5s','สแกน Seal ทีละอัน')}).catch(function(e){if(e&&e.message==='stale')return;msg('m5s',camErr(e),'err')})};
-$('stopSeal').onclick=closeSealCam;
+$('back5').onclick=function(){closeSealCam().then(function(){renderS3();show('s3')})};
+$('save3').onclick=function(){submit('m3')};$('save5').onclick=function(){submit('m5')};
+$('scanDenom').onclick=function(){if(state.denomSeals.length>=MAX_DENOM_SEALS)return;
+  closeSealCam().then(function(){$('denomWrap').classList.remove('hidden');msg('m5d','กำลังเปิดกล้อง…');
+    return startScan('denomReader','denom')}).then(function(){msg('m5d','สแกน Seal เก่าก่อน แล้วตามด้วย Seal ใหม่')})
+  .catch(function(e){if(e&&e.message==='stale')return;msg('m5d',camErr(e),'err')})};
+$('scanRej').onclick=function(){if(state.rejOld&&state.rejNew){state.rejOld=state.rejNew='';renderRej();persist()}
+  closeSealCam().then(function(){$('rejWrap').classList.remove('hidden');msg('m5r','กำลังเปิดกล้อง…');
+    return startScan('rejReader','reject')}).then(function(){msg('m5r',state.rejOld?'สแกน Seal ใหม่':'สแกน Seal เก่าก่อน แล้วตามด้วย Seal ใหม่')})
+  .catch(function(e){if(e&&e.message==='stale')return;msg('m5r',camErr(e),'err')})};
+$('stopDenom').onclick=$('stopRej').onclick=closeSealCam;
 $('again').onclick=function(){reset(true)};
 $('staffId').oninput=function(){state.staffId=this.value.trim();persist()};
-$('repair').oninput=function(){state.repair=this.value;persist()};
-DENOMS.forEach(function(d){$('n'+d).oninput=function(){this.value=this.value.replace(/\D/g,'').slice(0,5);state.notes['n'+d]=this.value;updateTotal();persist()}});
+$('denomNote').oninput=function(){state.denomNote=this.value;persist()};
+$('rejNote').oninput=function(){state.rejNote=this.value;persist()};
+DENOMS.forEach(function(d){$('n'+d).oninput=function(){this.value=this.value.replace(/\D/g,'').slice(0,5);state.rejNotes['n'+d]=this.value;updateTotal();persist()}});
 
 /* ---- กู้สถานะเมื่อรีเฟรช ---- */
 (function restore(){
+  checkApi();
   var o=null;try{o=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){}
   if(!o||!o.t||Date.now()-o.t>SESSION_MS)return;
-  ['staffId','process','qr','token','tokenTs','requestId','machine','location','repair','repairType'].forEach(function(k){if(o[k]!=null)state[k]=o[k]});state.saved=o.saved||null;
-  state.seals=(Array.isArray(o.seals)?o.seals:[]).filter(function(v){return SEAL_RE.test(v)}).slice(0,MAX_SEALS);
-  DENOMS.forEach(function(d){state.notes['n'+d]=String((o.notes||{})['n'+d]||'').replace(/\D/g,'').slice(0,5)});
-  $('staffId').value=state.staffId;$('repair').value=state.repair;DENOMS.forEach(function(d){$('n'+d).value=state.notes['n'+d]});
-  $('repairType').value=state.repairType;renderSeals();updateTotal();
+  ['staffId','process','qr','token','tokenTs','requestId','machine','location','denomNote','rejOld','rejNew','rejNote'].forEach(function(k){if(o[k]!=null)state[k]=o[k]});
+  state.denomSeals=(Array.isArray(o.denomSeals)?o.denomSeals:[]).filter(function(e){return e&&DENOMS.indexOf(Number(e.denom))>=0&&sealOk(e.oldSeal)&&sealOk(e.newSeal)})
+    .map(function(e){return{denom:Number(e.denom),oldSeal:e.oldSeal,newSeal:e.newSeal}}).slice(0,MAX_DENOM_SEALS);
+  var dp=o.denomPending;state.denomPending=dp&&DENOMS.indexOf(Number(dp.denom))>=0&&sealOk(dp.oldSeal)?{denom:Number(dp.denom),oldSeal:dp.oldSeal}:null;
+  if(!sealOk(state.rejOld))state.rejOld=state.rejNew='';else if(!sealOk(state.rejNew))state.rejNew='';
+  DENOMS.forEach(function(d){state.rejNotes['n'+d]=String((o.rejNotes||{})['n'+d]||'').replace(/\D/g,'').slice(0,5)});
+  $('staffId').value=state.staffId;$('denomNote').value=state.denomNote;$('rejNote').value=state.rejNote;
+  DENOMS.forEach(function(d){$('n'+d).value=state.rejNotes['n'+d]});
+  renderDenoms();renderRej();updateTotal();
   var ok=(state.process==='IN'||state.process==='OUT')&&STAFF_RE.test(state.staffId);
   if(!ok||o.step==='s1')return;
   setTags();
   if(o.step==='s2'){show('s2');beginMachineScan();return}
-  if(MACHINE_RE.test(state.machine)&&state.token&&Date.now()-state.tokenTs<=TOKEN_MS){renderS3();if(o.step==='s5')openDetails();else show('s3')}
-  else if(state.saved){clearData();state.staffId='';$('staffId').value='';show('s1');msg('m1','รายการเดิมหมดเวลา 5 ชั่วโมงแล้ว','err')}
+  if(MACHINE_RE.test(state.machine)&&state.token&&Date.now()-state.tokenTs<=TOKEN_MS){renderS3();if(o.step==='s5'&&state.process==='OUT')openDetails();else show('s3')}
   else{clearData();show('s2');beginMachineScan();msg('m2','เซสชันหมดเวลา กรุณาสแกน QR ของตู้ใหม่','err')}
 })();
 </script></body></html>
