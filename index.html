@@ -85,7 +85,7 @@ li button:hover:not(:disabled){background:rgba(217,54,69,.08);box-shadow:none}
 <main>
 <header class="topbar">
   <div class="brandmark" aria-hidden="true">✓</div>
-  <div class="brandcopy"><h1>ระบบ Check-Point ATM (BRINKS)</h1><div class="subtitle">ระบบบันทึกเข้า-ออกตู้ ATM</div></div>
+  <div class="brandcopy"><h1>ระบบ Check-Point</h1><div class="subtitle">ระบบบันทึกเข้า-ออกตู้ ATM</div></div>
 </header>
 
 <section id="s1" class="card">
@@ -117,12 +117,11 @@ li button:hover:not(:disabled){background:rgba(217,54,69,.08);box-shadow:none}
   <span id="tag5" class="tag"></span>
   <div class="sec">
     <h2>Repaire ATM (งานซ่อม)</h2>
-    <p class="muted" style="margin:0">เลือกประเภทงานซ่อม และชนิดธนบัตร แล้วสแกน Seal 2 ครั้ง: Seal เก่าก่อน แล้วตามด้วย Seal ใหม่ (เก็บเป็น เก่า//ใหม่) — ถ้าเลือกประเภทงานเป็น "Reject" จะสแกน Reject Seal เก่า/ใหม่ ไม่ต้องเลือกชนิดธนบัตร</p>
+    <p class="muted" style="margin:0">เลือกประเภทงานซ่อม และชนิดธนบัตร แล้วสแกน Seal 2 ครั้ง: Seal เก่าก่อน แล้วตามด้วย Seal ใหม่ (เก็บเป็น เก่า//ใหม่) — ถ้าเลือกชนิด "Reject" จะเก็บเป็น RJ : เก่า//ใหม่ และไม่ต้องเลือกประเภทงาน</p>
     <label for="repairType">ประเภทงานซ่อม</label>
-    <select id="repairType"><option value="">— เลือกประเภทงาน —</option><option value="FLM">FLM</option><option value="SLM">SLM</option><option value="PM">PM</option><option value="RJ">Reject</option></select>
-    <div id="repairNow" class="muted" style="margin-top:6px"></div>
-    <label for="denomSel" id="denomLab">ชนิดธนบัตร</label>
-    <select id="denomSel"><option value="1000">1,000</option><option value="500">500</option><option value="100">100</option></select>
+    <select id="repairType"><option value="">— เลือกประเภทงาน —</option><option value="FLM">FLM</option><option value="SLM">SLM</option><option value="PM">PM</option></select>
+    <label for="denomSel">ชนิดธนบัตร</label>
+    <select id="denomSel"><option value="1000">1,000</option><option value="500">500</option><option value="100">100</option><option value="RJ">Reject</option></select>
     <ul id="denomList"></ul>
     <ul id="rejPairList"></ul>
     <button class="ghost" id="scanDenom" style="width:100%">▣ สแกน Seal (เก่า แล้วใหม่)</button>
@@ -210,7 +209,7 @@ function machineFromQr(text){var t=String(text||'').replace(/^\uFEFF/,'').trim()
 function locFromQr(text){var m=String(text||'').match(/"location"\s*:\s*"([^"]*)"/);return m?m[1].replace(/\s+/g,' ').trim():''}
 function sealOk(v){return SEAL_RE.test(v)&&!/^\/|\/$|\/\//.test(v)}
 function start(process){var id=$('staffId').value.trim();if(!STAFF_RE.test(id)){msg('m1','กรุณากรอก Staff ID ให้ถูกต้อง','err');return}clearData();state.staffId=id;state.process=process;setTags();show('s2');beginMachineScan()}
-function clearData(){state.qr=state.token='';state.tokenTs=0;state.requestId=state.machine=state.location='';state.repairType='';state.denomSeals=[];state.denomPending=null;state.denomNote='';state.rejSeals=[];state.rejPendingSeal=null;state.rejPairs=[];state.rejPairPending=null;state.rejNote='';$('denomNote').value=$('rejNote').value='';$('repairType').selectedIndex=0;updateRepairMode();$('denomSel').selectedIndex=0;$('denomWrap').classList.add('hidden');$('rejWrap').classList.add('hidden');$('qtyModal').classList.add('hidden');msg('m3');msg('m5');msg('m5d');msg('m5r');renderDenoms();renderRej()}
+function clearData(){state.qr=state.token='';state.tokenTs=0;state.requestId=state.machine=state.location='';state.repairType='';state.denomSeals=[];state.denomPending=null;state.denomNote='';state.rejSeals=[];state.rejPendingSeal=null;state.rejPairs=[];state.rejPairPending=null;state.rejNote='';$('denomNote').value=$('rejNote').value='';$('repairType').selectedIndex=0;$('denomSel').selectedIndex=0;$('denomWrap').classList.add('hidden');$('rejWrap').classList.add('hidden');$('qtyModal').classList.add('hidden');msg('m3');msg('m5');msg('m5d');msg('m5r');renderDenoms();renderRej()}
 function reset(clearStaff){stopScan().then(function(){clearData();state.busy=false;if(clearStaff){state.staffId='';$('staffId').value=''}msg('m1');show('s1')})}
 function onScan(text){if(state.busy)return;state.busy=true;msg('m2','กำลังตรวจสอบ QR Code…');api({action:'verifyScan',staffId:state.staffId,process:state.process,qr:text}).then(function(res){if(res.ok){var mc=machineFromQr(text);if(!MACHINE_RE.test(mc)){msg('m2','QR นี้ไม่มีหมายเลขเครื่อง (atmid) กรุณาสแกน QR ที่เครื่องจักร','err');setTimeout(function(){state.busy=false},1500);return}state.qr=text;state.token=res.token;state.tokenTs=Number(String(res.token).split('.')[1])||Date.now();state.machine=mc;state.location=locFromQr(text);state.requestId=crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random();state.busy=false;return stopScan().then(function(){renderS3();show('s3')})}msg('m2',(res.error||'สแกนไม่สำเร็จ กรุณาลองใหม่')+hint(),'err');setTimeout(function(){state.busy=false},1500)}).catch(function(e){msg('m2','เชื่อมต่อไม่ได้: '+(e&&e.message?e.message:e),'err');setTimeout(function(){state.busy=false},1500)})}
 function renderS3(){$('machineBig').textContent=state.machine;$('locText').textContent=state.location||'ไม่พบข้อมูลสถานที่ใน QR';var out=state.process==='OUT';$('detailsRow').classList.toggle('hidden',!out);$('save3').textContent=out?'บันทึก (ไม่มีรายละเอียด)':'บันทึก'}
@@ -226,14 +225,13 @@ function renderRej(){var ul=$('rejList');ul.innerHTML='';state.rejSeals.forEach(
 function sealDebounce(v){var now=Date.now();if(v===state.lastSeal&&now-state.lastAt<2500)return true;state.lastSeal=v;state.lastAt=now;return false}
 function vibe(){try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}
 function onSealScan(k,text){var K=KINDS[k],v=String(text||'').trim();if(sealDebounce(v))return;if(!sealOk(v)){msg(K.m,'อ่านค่า Seal ไม่ได้หรือรูปแบบไม่ถูกต้อง ลองสแกนใหม่','err');return}var p=state[K.pend],list=state[K.list];if(!p){state[K.pend]={denom:K.sel?parseInt($(K.sel).value,10):0,oldSeal:v};renderKind(k);persist();vibe();msg(K.m,'Seal เก่า: '+v+' — สแกนครั้งที่ 2: Seal ใหม่','ok');return}if(v===p.oldSeal){msg(K.m,'Seal ใหม่ซ้ำกับ Seal เก่า กรุณาสแกน Seal ใหม่','err');return}if(list.length>=MAX_DENOM_SEALS)return;list.push({denom:p.denom,oldSeal:p.oldSeal,newSeal:v});state[K.pend]=null;renderKind(k);persist();vibe();msg(K.m,'เพิ่ม '+sealLab(p)+': '+p.oldSeal+'//'+v+' (สแกนต่อ หรือกด "ปิดกล้อง")','ok')}
-function updateRepairMode(){var rj=$('repairType').value==='RJ';$('denomSel').classList.toggle('hidden',rj);$('denomLab').classList.toggle('hidden',rj);$('repairNow').textContent=rj?(state.repairType?'ประเภทงานซ่อมที่จะบันทึก: '+state.repairType:'ยังไม่ได้เลือกประเภทงานซ่อม FLM / SLM / PM (ไม่บังคับถ้าไม่มี Repair Seal)'):''}
-function onDenomScan(t){var k=state.rejPairPending?'rejpair':state.denomPending?'denom':($('repairType').value==='RJ'?'rejpair':'denom');onSealScan(k,t)}
+function onDenomScan(t){var k=state.rejPairPending?'rejpair':state.denomPending?'denom':($('denomSel').value==='RJ'?'rejpair':'denom');onSealScan(k,t)}
 /* Reject: สแกน Seal ก่อน -> เลือกชนิดธนบัตร + กรอกจำนวนใบในหน้าต่างป๊อปอัป */
 function onRejScan(text){var v=String(text||'').trim();if(!$('qtyModal').classList.contains('hidden'))return;if(sealDebounce(v))return;if(!sealOk(v)){msg('m5r','อ่านค่า Seal ไม่ได้หรือรูปแบบไม่ถูกต้อง ลองสแกนใหม่','err');return}if(state.rejSeals.some(function(e){return e.seal===v})){msg('m5r','Seal นี้สแกนแล้ว','err');return}if(state.rejSeals.length>=MAX_DENOM_SEALS)return;state.rejPendingSeal={seal:v};vibe();$('qtyInfo').textContent='Seal Reject: '+v;DENOMS.forEach(function(d){$('qty'+d).value=''});msg('qtyMsg');$('qtyModal').classList.remove('hidden');setTimeout(function(){$('qty1000').focus()},50)}
 function qtyClose(){$('qtyModal').classList.add('hidden');state.rejPendingSeal=null}
 function qtyOk(){var p=state.rejPendingSeal;if(!p){qtyClose();return}var e={seal:p.seal},total=0;for(var i=0;i<RJL.length;i++){var key=RJL[i][0],raw=$('qty'+key.slice(1)).value,q=raw===''?0:Number(raw);if(!isFinite(q)||q<0||q>99999||Math.floor(q)!==q){msg('qtyMsg','จำนวนใบต้องเป็นเลขจำนวนเต็ม 0-99,999','err');return}e[key]=q;total+=q}if(total<1){msg('qtyMsg','กรอกจำนวนใบอย่างน้อย 1 ช่อง','err');return}state.rejSeals.push(e);qtyClose();renderRej();persist();msg('m5r','เพิ่ม Seal '+e.seal+' : '+rejText(e)+' (สแกนต่อ หรือกด "ปิดกล้อง")','ok')}
 function closeSealCam(){qtyClose();return stopScan().then(function(){$('denomWrap').classList.add('hidden');$('rejWrap').classList.add('hidden')})}
-function openDetails(){$('denomNote').value=state.denomNote;$('rejNote').value=state.rejNote;$('repairType').value=state.repairType;updateRepairMode();renderDenoms();renderRej();show('s5')}
+function openDetails(){$('denomNote').value=state.denomNote;$('rejNote').value=state.rejNote;$('repairType').value=state.repairType;renderDenoms();renderRej();show('s5')}
 function submit(mid){if(state.busy)return;if(!MACHINE_RE.test(state.machine)||!state.token||Date.now()-state.tokenTs>TOKEN_MS){stopScan().then(function(){clearData();show('s2');beginMachineScan();msg('m2','หมดเวลา กรุณาสแกน QR ของตู้ใหม่','err')});return}if(state.process==='OUT'&&mid==='m5'){if(state.rejPairPending){msg(mid,'สแกน Reject Seal ใหม่ให้ครบก่อนบันทึก (หรือกด "ลบ" ที่รายการที่ค้างอยู่)','err');return}if(state.denomPending){msg(mid,'สแกน Seal ใหม่ของ Denom ให้ครบก่อนบันทึก (หรือกด "ลบ" ที่รายการที่ค้างอยู่)','err');return}if(state.denomSeals.length&&REPAIR_TYPES.indexOf(state.repairType)<0){msg(mid,'เลือกประเภทงานซ่อม (FLM / SLM / PM) ก่อนบันทึก','err');return}}
  var p={action:'submit',staffId:state.staffId,process:state.process,qr:state.qr,token:state.token,requestId:state.requestId};if(state.process==='OUT'&&mid==='m5'){p.repairType=state.repairType;p.denomSeals=state.denomSeals;p.denomNote=state.denomNote.trim();p.rejectSeals=state.rejSeals;p.rejectPairs=state.rejPairs;p.rejectNote=state.rejNote.trim()}
  state.busy=true;$('save3').disabled=$('save5').disabled=true;msg(mid,'กำลังบันทึก…');closeSealCam().then(function(){return api(p)}).then(function(res){if(res.ok){$('done').textContent=res.duplicate?'รายการนี้บันทึกไว้แล้ว':'บันทึก '+(state.process==='IN'?'Check-in':'Check-out')+' ตู้ '+state.machine+(res.time?' เวลา '+res.time:'')+' สำเร็จ';show('s4')}else msg(mid,(res.error||'บันทึกไม่สำเร็จ')+hint(),'err')}).catch(function(e){msg(mid,'บันทึกไม่สำเร็จ: '+(e&&e.message?e.message:e),'err')}).then(function(){state.busy=false;$('save3').disabled=$('save5').disabled=false})}
@@ -244,8 +242,8 @@ $('retry2').onclick=function(){stopScan().then(beginMachineScan)};
 $('openDetails').onclick=openDetails;
 $('back5').onclick=function(){closeSealCam().then(function(){renderS3();show('s3')})};
 $('save3').onclick=function(){submit('m3')};$('save5').onclick=function(){submit('m5')};
-$('repairType').onchange=function(){if(this.value!=='RJ'){state.repairType=this.value;persist()}updateRepairMode()};
-$('scanDenom').onclick=function(){if(state.denomSeals.length>=MAX_DENOM_SEALS)return;if($('repairType').value!=='RJ'&&REPAIR_TYPES.indexOf(state.repairType)<0){msg('m5d','เลือกประเภทงานซ่อม (FLM / SLM / PM) ก่อนสแกน Seal (หรือเลือกชนิด Reject)','err');return}closeSealCam().then(function(){$('denomWrap').classList.remove('hidden');msg('m5d','กำลังเปิดกล้อง…');return startScan('denomReader','denom')}).then(function(){msg('m5d','สแกน Seal เก่าก่อน แล้วตามด้วย Seal ใหม่')}).catch(function(e){if(e&&e.message==='stale')return;msg('m5d',camErr(e),'err')})};
+$('repairType').onchange=function(){state.repairType=this.value;persist()};
+$('scanDenom').onclick=function(){if(state.denomSeals.length>=MAX_DENOM_SEALS)return;if($('denomSel').value!=='RJ'&&REPAIR_TYPES.indexOf(state.repairType)<0){msg('m5d','เลือกประเภทงานซ่อม (FLM / SLM / PM) ก่อนสแกน Seal (หรือเลือกชนิด Reject)','err');return}closeSealCam().then(function(){$('denomWrap').classList.remove('hidden');msg('m5d','กำลังเปิดกล้อง…');return startScan('denomReader','denom')}).then(function(){msg('m5d','สแกน Seal เก่าก่อน แล้วตามด้วย Seal ใหม่')}).catch(function(e){if(e&&e.message==='stale')return;msg('m5d',camErr(e),'err')})};
 $('scanRej').onclick=function(){if(state.rejSeals.length>=MAX_DENOM_SEALS)return;closeSealCam().then(function(){$('rejWrap').classList.remove('hidden');msg('m5r','กำลังเปิดกล้อง…');return startScan('rejReader','reject')}).then(function(){msg('m5r','สแกน Seal Reject แล้วเลือกชนิดธนบัตรและกรอกจำนวนใบ')}).catch(function(e){if(e&&e.message==='stale')return;msg('m5r',camErr(e),'err')})};
 $('stopDenom').onclick=$('stopRej').onclick=closeSealCam;
 $('qtyOk').onclick=qtyOk;$('qtyCancel').onclick=qtyClose;
