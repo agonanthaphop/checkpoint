@@ -205,11 +205,11 @@ function diag(){fetch(API_URL).then(function(r){return r.json()}).then(function(
 function setErr(t){$('err').textContent=t||'';if(!$('login').classList.contains('hidden'))$('errL').textContent=t||''}
 function showLogin(msg){$('app').classList.add('hidden');$('login').classList.remove('hidden');$('errL').textContent=msg||'';$('errL').style.cssText='font-size:13px;color:var(--rej);margin-bottom:8px;min-height:18px';$('pinIn').value='';setTimeout(function(){$('pinIn').focus()},50)}
 function showApp(){$('login').classList.add('hidden');$('app').classList.remove('hidden')}
-/* โหมดจอตลอด: กันจอดับ + จำ PIN ในเครื่อง + รีโหลดทุก 6 ชม. */
+/* โหมดเต็มจอ กันจอดับ + จำ PIN ในเครื่อง + รีโหลดทุก 6 ชม. */
 function keepAwake(){if(!kiosk||wl||!navigator.wakeLock||document.hidden)return;navigator.wakeLock.request('screen').then(function(l){wl=l;l.addEventListener('release',function(){wl=null})}).catch(function(){})}
 function releaseAwake(){if(wl){wl.release().catch(function(){});wl=null}}
 function setKiosk(on){kiosk=on;try{if(on){localStorage.setItem(KK,'1');if(pin)localStorage.setItem(PK,pin)}else{localStorage.removeItem(KK);localStorage.removeItem(PK)}}catch(e){}
- $('kiosk').textContent='โหมดจอตลอด: '+(on?'เปิด':'ปิด');
+ $('kiosk').textContent='โหมดเต็มจอ '+(on?'เปิด':'ปิด');
  if(on){keepAwake();var r=document.documentElement;if(r.requestFullscreen&&!document.fullscreenElement)r.requestFullscreen().catch(function(){})}
  else{releaseAwake();if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(function(){})}}
 function load(){
@@ -237,7 +237,7 @@ $('aX').onclick=hideAlert;
 $('dateSel').value=today();$('dateSel').onchange=function(){seen=null;rowsIn=[];rowsOut=[];render();load()};
 document.addEventListener('visibilitychange',function(){if(!document.hidden){keepAwake();load()}});
 setInterval(function(){if(kiosk)location.reload()},6*36e5);
-$('kiosk').textContent='โหมดจอตลอด: '+(kiosk?'เปิด':'ปิด');keepAwake();
+$('kiosk').textContent='โหมดเต็มจอ '+(kiosk?'เปิด':'ปิด');keepAwake();
 setInterval(load,POLL_MS);
 if(pin){showLogin('กำลังตรวจสอบ PIN…');load()}else showLogin('');
 </script>
