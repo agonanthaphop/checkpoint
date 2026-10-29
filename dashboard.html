@@ -121,7 +121,7 @@ tr.new td{background:var(--hl)}
 </main>
 
 <script>
-var API_URL='https://script.google.com/macros/s/AKfycbzZ1GECAcDjqvRaC171fX-pL4XUHYRzF3C4vtpsbd8dFEoTb5MnMfY-q0tntlbZ2GKwqw/exec';
+var API_URL='https://script.google.com/macros/s/AKfycbwItTMuWnCtbwEgGgvyvp9oORowyNmBKP6KpvijVWl1TTnBsiIAFJNlDOF65uxpe8OovQ/exec';
 var POLL_MS=8000,ALERT_MS=45000,DEN=[1000,500,100],PK='cp.dash.pin';
 var $=function(i){return document.getElementById(i)};
 var tab='in',alertTimer=null,busy=false,pin='',seen=null,seenDate='',nuMap={},LOC={},rowsIn=[],rowsOut=[];
@@ -199,13 +199,14 @@ function announce(ni,no){
 
 /* ดึงข้อมูลจาก Apps Script */
 function api(p){return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(p)}).then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){throw new Error('API ตอบกลับไม่ใช่ JSON (ตรวจการ Deploy / สิทธิ์ Anyone)')}})}
+function diag(){fetch(API_URL).then(function(r){return r.json()}).then(function(j){setErr('สคริปต์ที่ URL นี้ยังไม่รองรับ Dashboard — เวอร์ชันที่ตอบกลับ: '+(j.version||'ไม่ทราบ')+' (ต้องเป็น v13-in-out) • URL ลงท้าย ...'+API_URL.slice(-16))}).catch(function(){setErr('สคริปต์ยังไม่รองรับ Dashboard (Deploy เป็น New version แล้วหรือยัง?)')})}
 function setErr(t){$('err').textContent=t||''}
 function showLogin(msg){$('app').classList.add('hidden');$('login').classList.remove('hidden');$('errL').textContent=msg||'';$('errL').style.cssText='font-size:13px;color:var(--rej);margin-bottom:8px;min-height:18px';$('pinIn').value='';setTimeout(function(){$('pinIn').focus()},50)}
 function showApp(){$('login').classList.add('hidden');$('app').classList.remove('hidden')}
 function load(){
  if(busy||!pin||document.hidden)return;busy=true;var d=$('dateSel').value||today();
  api({action:'dashboard',pin:pin,from:d,to:d}).then(function(res){
-  if(!res.ok){if(/PIN/.test(res.error||'')&&!/ยังไม่ได้ตั้ง/.test(res.error)){pin='';try{sessionStorage.removeItem(PK)}catch(e){}showLogin(res.error);return}setErr(res.error+' (ถ้าเพิ่งแก้ Code.gs ให้ Deploy เป็น New version)');return}
+  if(!res.ok){if(/PIN/.test(res.error||'')&&!/ยังไม่ได้ตั้ง/.test(res.error)){pin='';try{sessionStorage.removeItem(PK)}catch(e){}showLogin(res.error);return}if(/คำขอไม่ถูกต้อง/.test(res.error||'')){diag();return}setErr(res.error);return}
   setErr('');LOC=res.locations||{};
   var ri=(res.inRows||[]).map(parseIn),ro=(res.outRows||[]).map(parseOut),ni=[],no=[];
   if(seen===null||seenDate!==d){seen={};seenDate=d;nuMap={};ri.concat(ro).forEach(function(r){seen[r.k]=1})}
