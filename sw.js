@@ -1,7 +1,7 @@
 /* Service worker: เก็บตัวแอปไว้ใช้ตอนไม่มีเน็ต (ไม่แตะคำขอไป Apps Script) */
-var V = 'cp-v14-1';
+var V = 'cp-v14-2';
 var SHELL = ['./', 'index.html', 'dashboard.html', 'html5-qrcode.min.js',
-  'manifest.json', 'manifest-dash.json', 'icon-192.png', 'icon-512.png'];
+  'manifest.json', 'manifest-dash.json', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
 
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(V).then(function (c) { return c.addAll(SHELL); }).then(function () { return self.skipWaiting(); }));
