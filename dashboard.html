@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<title>Dashboard | Check-Point</title>
+<style>
+:root{color-scheme:light;--bg:#eceef1;--card:#fff;--text:#1d2530;--muted:#69727f;--line:#cdd2d9;--head:#f4f5f7;--hover:#f7f8fa;
+ --in:#1f4e8c;--out:#a4560b;--ok:#2d6a43;--rep:#8a6100;--rej:#a12a2a;--hl:#fff6d6}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#14171c;--card:#1b1f26;--text:#e4e7ec;--muted:#98a1ae;--line:#323944;--head:#222730;--hover:#20252d;
+ --in:#7fa9e0;--out:#e0a064;--ok:#74b88c;--rep:#d8b45c;--rej:#e07a7a;--hl:#3a3418}}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Noto Sans Thai","Sarabun",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;color:var(--text);background:var(--bg);line-height:1.5}
+main{max-width:1100px;margin:0 auto;padding:16px 14px calc(32px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;padding-bottom:10px;border-bottom:2px solid var(--text);margin-bottom:14px}
+.top h1{margin:0;font-size:19px;font-weight:700}.sub{font-size:12px;color:var(--muted)}
+.grow{flex:1;min-width:160px}
+.live{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+button,input,select{font:inherit}
+input,select{font-size:13px;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:2px;padding:6px 9px;outline:none}
+input:focus,select:focus{border-color:var(--text)}
+.btn{font-size:13px;padding:6px 11px;border:1px solid var(--line);border-radius:2px;background:var(--card);color:var(--text);cursor:pointer}
+.btn:hover{background:var(--hover);border-color:var(--text)}
+.tabs{display:flex;gap:0;margin:0 0 14px;border-bottom:1px solid var(--line)}
+.tab{display:flex;align-items:center;gap:8px;padding:9px 18px;font-size:14px;font-weight:600;border:0;border-bottom:3px solid transparent;margin-bottom:-1px;background:transparent;color:var(--muted);cursor:pointer}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--text);border-bottom-color:var(--in)}.tab.on.o{border-bottom-color:var(--out)}
+.cnt{font-size:12px;font-weight:400;color:var(--muted);font-variant-numeric:tabular-nums}
+.dot{width:7px;height:7px;background:var(--rej);display:none}.dot.show{display:inline-block}
+.kpis{display:flex;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);margin-bottom:14px}
+.kpi{flex:1 1 130px;padding:9px 14px;border-right:1px solid var(--line)}
+.kpi:last-child{border-right:0}
+.kpi span{display:block;font-size:12px;color:var(--muted)}
+.kpi b{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.3}
+.card{background:var(--card);border:1px solid var(--line);margin-bottom:14px}
+.card h2{margin:0;padding:9px 12px;font-size:14px;font-weight:700;border-bottom:1px solid var(--line);background:var(--head);display:flex;gap:10px;align-items:baseline}
+.bar{display:flex;gap:8px;flex-wrap:wrap;padding:9px 12px;border-bottom:1px solid var(--line)}.bar input{flex:1;min-width:140px}
+.wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:7px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:7px 12px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:var(--hover)}
+tr.new td{background:var(--hl)}
+.chip{display:inline-block;padding:0 6px;border:1px solid currentColor;border-radius:2px;font-size:12px;white-space:nowrap;margin:0 4px 2px 0}
+.c-work{color:var(--in)}.c-ok{color:var(--ok)}.c-rep{color:var(--rep)}.c-rej{color:var(--rej)}.c-n{color:var(--muted)}
+.c-new{color:#fff;background:var(--rej);border-color:var(--rej);margin:0 0 0 6px}
+.m{font-weight:700}.mut{color:var(--muted)}.empty{padding:16px;text-align:center;color:var(--muted)}
+.hidden{display:none!important}
+#alert{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translate(-50%,-140%);width:min(560px,calc(100% - 20px));z-index:50;background:var(--card);border:1px solid var(--text);border-left:5px solid var(--in);padding:9px 12px 12px;transition:transform .2s}
+#alert.out{border-left-color:var(--out)}#alert.show{transform:translate(-50%,0)}
+#alert .t{display:flex;align-items:center;gap:10px}#alert .t b{flex:1;font-size:14px}
+#alert .x{border:0;background:transparent;color:var(--muted);font-size:20px;cursor:pointer;line-height:1;padding:0 2px}
+#alert .d{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+#alert .pg{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--in);transform-origin:left}
+#alert.out .pg{background:var(--out)}
+#alert .pg.run{transform:scaleX(0);transition:transform 45s linear}
+.note{font-size:12px;color:var(--muted);margin-top:4px}
+@media(max-width:560px){main{padding:12px 8px 28px}.tab{padding:9px 12px}}
+.login{max-width:340px;margin:60px auto 0;background:var(--card);border:1px solid var(--line);padding:16px}
+.login label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.login input{width:100%;margin-bottom:10px;padding:9px 10px;font-size:16px}
+.login .btn{width:100%;padding:9px;font-weight:600}
+#err{font-size:13px;color:var(--rej);min-height:20px;margin:-6px 0 8px;overflow-wrap:anywhere}
+.login #err{margin:0 0 8px}
+</style>
+</head>
+<body>
+<div id="alert" role="status" aria-live="polite"><div class="t"><b id="aTitle"></b><button class="x" id="aX" aria-label="ปิด">×</button></div><div class="d" id="aDesc"></div><div class="pg" id="aPg"></div></div>
+
+<main>
+<form class="login hidden" id="login" autocomplete="off">
+  <label for="pinIn">PIN สำหรับดู Dashboard</label>
+  <input id="pinIn" type="password" autocomplete="off" maxlength="20" placeholder="กรอก PIN">
+  <div id="errL"></div>
+  <button class="btn" type="submit">เข้าสู่ระบบ</button>
+</form>
+
+<div id="app" class="hidden">
+<header class="top">
+  <div class="grow"><h1>Check-Point ATM Operations</h1><div class="sub">Dashboard</div></div>
+  <span class="live" id="live">กำลังโหลด…</span>
+  <input type="date" id="dateSel" aria-label="เลือกวันที่">
+  <button class="btn" id="out">ออกจากระบบ</button>
+</header>
+<div id="err" role="status" aria-live="polite"></div>
+
+<nav class="tabs">
+  <button class="tab on" id="tIn" data-t="in">Check-in <span class="cnt" id="cIn">0</span><span class="dot" id="dIn"></span></button>
+  <button class="tab o" id="tOut" data-t="out">Check-out <span class="cnt" id="cOut">0</span><span class="dot" id="dOut"></span></button>
+</nav>
+
+<section id="pIn">
+  <div class="kpis" id="kIn"></div>
+  <div class="card">
+    <h2>รายการ Check-in ทั้งหมด <span class="cnt" id="hIn"></span></h2>
+    <div class="bar"><input id="qIn" placeholder="ค้นหา Staff ID / หมายเลขตู้"><select id="fIn"><option value="">สถานะทั้งหมด</option><option value="work">กำลังปฏิบัติงาน</option><option value="done">Check-out แล้ว</option></select></div>
+    <div class="wrap"><table><thead><tr><th>เวลา</th><th>Staff ID</th><th>ตู้ ATM</th><th>สถานที่</th><th>สถานะ</th></tr></thead><tbody id="bIn"></tbody></table></div>
+  </div>
+</section>
+
+<section id="pOut" class="hidden">
+  <div class="kpis" id="kOut"></div>
+  <div class="card">
+    <h2>รายการ Check-out ทั้งหมด <span class="cnt" id="hOut"></span></h2>
+    <div class="bar"><input id="qOut" placeholder="ค้นหา Staff ID / หมายเลขตู้"><select id="fOut"><option value="">สถานะทั้งหมด</option><option value="rep">มี Repair</option><option value="rej">มี Reject</option><option value="none">ไม่มีรายละเอียด</option></select></div>
+    <div class="wrap"><table><thead><tr><th>เวลา</th><th>Staff ID</th><th>ตู้ ATM</th><th>สถานที่</th><th>สถานะ</th></tr></thead><tbody id="bOut"></tbody></table></div>
+  </div>
+  <div class="card">
+    <h2>Repair (งานซ่อม) <span class="cnt" id="hRep"></span></h2>
+    <div class="wrap"><table><thead><tr><th>เวลา</th><th>Staff ID</th><th>ตู้</th><th>ประเภทงาน</th><th>Seal 1,000</th><th>Seal 500</th><th>Seal 100</th><th>รายละเอียด</th></tr></thead><tbody id="bRep"></tbody></table></div>
+  </div>
+  <div class="card">
+    <h2>Reject <span class="cnt" id="hRej"></span></h2>
+    <div class="wrap"><table><thead><tr><th>เวลา</th><th>Staff ID</th><th>ตู้</th><th>Seal Reject</th><th>1,000</th><th>500</th><th>100</th><th>รวม (ใบ)</th><th>รายละเอียด</th></tr></thead><tbody id="bRej"></tbody></table></div>
+  </div>
+</div>
+<div class="note">ดึงข้อมูลอัตโนมัติทุก 8 วินาที</div>
+</div>
+</main>
+
+<script>
+var API_URL='https://script.google.com/macros/s/AKfycbzZ1GECAcDjqvRaC171fX-pL4XUHYRzF3C4vtpsbd8dFEoTb5MnMfY-q0tntlbZ2GKwqw/exec';
+var POLL_MS=8000,ALERT_MS=45000,DEN=[1000,500,100],PK='cp.dash.pin';
+var $=function(i){return document.getElementById(i)};
+var tab='in',alertTimer=null,busy=false,pin='',seen=null,seenDate='',nuMap={},LOC={},rowsIn=[],rowsOut=[];
+try{pin=sessionStorage.getItem(PK)||''}catch(e){}
+
+function clock(){var d=new Date(),p=function(n){return String(n).padStart(2,'0')};return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())}
+function today(){return new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Bangkok'})}
+function el(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e}
+function chip(txt,cls){return el('span','chip '+cls,txt)}
+function isNew(r){return r.nu&&Date.now()<r.nu}
+function td(tr,content,cls){var c=document.createElement('td');if(cls)c.className=cls;if(content instanceof Node)c.appendChild(content);else c.textContent=content==null?'':content;tr.appendChild(c);return c}
+function mcell(r){return el('span','m',r.m)}
+function locOf(r){return LOC[r.m]||'-'}
+function empty(tb,cols){tb.innerHTML='';var tr=el('tr'),c=el('td','empty','ไม่มีข้อมูล');c.colSpan=cols;tr.appendChild(c);tb.appendChild(tr)}
+function match(r,q){q=q.trim().toLowerCase();return !q||(r.s+' '+r.m).toLowerCase().indexOf(q)>=0}
+function sp(v){return String(v==null?'':v).trim()}
+
+/* แปลงแถวจากชีต -> object */
+function parseIn(a){return{k:'i|'+a[2]+'|'+a[3]+'|'+sp(a[0])+'|'+sp(a[5]),t:sp(a[3]),s:sp(a[0]),m:sp(a[5])}}
+function parseRep(a){var g={1000:sp(a[6]),500:sp(a[7]),100:sp(a[8])},type=sp(a[9]),note=sp(a[10]);
+ if(!type&&!g[1000]&&!g[500]&&!g[100]&&!note)return null;return{type:type,g:g,note:note}}
+function parseRej(a){
+ var seals=sp(a[11])?sp(a[11]).split(/\s*,\s*/):[],q={};
+ [12,13,14].forEach(function(c,ix){if(!sp(a[c]))return;sp(a[c]).split(/\s*,\s*/).forEach(function(p){var m=p.match(/^(.+?)\/\/\s*จำนวน\s*(\d+)/);if(m){(q[m[1]]=q[m[1]]||{})[DEN[ix]]=Number(m[2])}})});
+ var list=seals.map(function(s){return{seal:s,q:q[s]||{}}});
+ Object.keys(q).forEach(function(s){if(seals.indexOf(s)<0)list.push({seal:s,q:q[s]})});
+ var note=sp(a[15]);if(!list.length&&!note)return null;if(!list.length)list.push({seal:'-',q:{}});
+ return{seals:list,note:note}}
+function parseOut(a){return{k:'o|'+a[2]+'|'+a[3]+'|'+sp(a[0])+'|'+sp(a[5]),t:sp(a[3]),s:sp(a[0]),m:sp(a[5]),rep:parseRep(a),rej:parseRej(a)}}
+
+function inStatus(r){return rowsOut.some(function(o){return o.s===r.s&&o.m===r.m&&o.t>=r.t})?'done':'work'}
+function sums(o){var t=0;if(o.rej)o.rej.seals.forEach(function(x){DEN.forEach(function(d){t+=x.q[d]||0})});return t}
+function outStatus(o){return o.rep&&o.rej?'both':o.rep?'rep':o.rej?'rej':'none'}
+function kpi(box,items){box.innerHTML='';items.forEach(function(i){var k=el('div','kpi');k.appendChild(el('span',null,i[0]));k.appendChild(el('b',null,String(i[1])));box.appendChild(k)})}
+
+function render(){
+ var work=rowsIn.filter(function(r){return inStatus(r)==='work'}).length;
+ $('cIn').textContent=rowsIn.length;$('cOut').textContent=rowsOut.length;
+ kpi($('kIn'),[['Check-in ทั้งหมด',rowsIn.length],['กำลังปฏิบัติงาน',work],['Check-out แล้ว',rowsIn.length-work],['ตู้ที่เข้าปฏิบัติงาน',new Set(rowsIn.map(function(r){return r.m})).size]]);
+ var fi=$('fIn').value,li=rowsIn.slice().reverse().filter(function(r){return match(r,$('qIn').value)&&(!fi||inStatus(r)===fi)});
+ $('hIn').textContent=li.length+' รายการ';var b=$('bIn');b.innerHTML='';
+ if(!li.length)empty(b,5);li.forEach(function(r){var tr=el('tr',isNew(r)?'new':'');td(tr,r.t);var c=td(tr,r.s);if(isNew(r))c.appendChild(chip('ใหม่','c-new'));td(tr,mcell(r));td(tr,locOf(r),'mut');td(tr,chip(inStatus(r)==='work'?'กำลังปฏิบัติงาน':'Check-out แล้ว',inStatus(r)==='work'?'c-work':'c-ok'));b.appendChild(tr)});
+ var nRep=rowsOut.filter(function(o){return o.rep}).length,bags=0,tot=0;rowsOut.forEach(function(o){if(o.rej){bags+=o.rej.seals.length;tot+=sums(o)}});
+ kpi($('kOut'),[['Check-out ทั้งหมด',rowsOut.length],['งาน Repair',nRep],['ถุง Reject',bags],['Reject รวม (ใบ)',tot.toLocaleString('en-US')]]);
+ var fo=$('fOut').value,lo=rowsOut.slice().reverse().filter(function(o){return match(o,$('qOut').value)&&(!fo||(fo==='rep'&&o.rep)||(fo==='rej'&&o.rej)||(fo==='none'&&outStatus(o)==='none'))});
+ $('hOut').textContent=lo.length+' รายการ';b=$('bOut');b.innerHTML='';
+ if(!lo.length)empty(b,5);lo.forEach(function(o){var tr=el('tr',isNew(o)?'new':'');td(tr,o.t);var c=td(tr,o.s);if(isNew(o))c.appendChild(chip('ใหม่','c-new'));td(tr,mcell(o));td(tr,locOf(o),'mut');var s=td(tr);if(o.rep)s.appendChild(chip('Repair'+(o.rep.type?' '+o.rep.type:''),'c-rep'));if(o.rej)s.appendChild(chip('Reject','c-rej'));if(!o.rep&&!o.rej)s.appendChild(chip('ไม่มีรายละเอียด','c-n'));b.appendChild(tr)});
+ var rp=rowsOut.filter(function(o){return o.rep}).reverse();$('hRep').textContent=rp.length+' รายการ';b=$('bRep');b.innerHTML='';
+ if(!rp.length)empty(b,8);rp.forEach(function(o){var tr=el('tr',isNew(o)?'new':'');td(tr,o.t);td(tr,o.s);td(tr,mcell(o));td(tr,o.rep.type?chip(o.rep.type,'c-rep'):'-');DEN.forEach(function(d){td(tr,o.rep.g[d]||'-',o.rep.g[d]?'':'mut')});td(tr,o.rep.note||'-','mut');b.appendChild(tr)});
+ var rj=[];rowsOut.slice().reverse().forEach(function(o){if(o.rej)o.rej.seals.forEach(function(x){rj.push({o:o,x:x})})});
+ $('hRej').textContent=rj.length+' ถุง';b=$('bRej');b.innerHTML='';
+ if(!rj.length)empty(b,9);rj.forEach(function(p){var tr=el('tr',isNew(p.o)?'new':''),sum=0;td(tr,p.o.t);td(tr,p.o.s);td(tr,mcell(p.o));td(tr,p.x.seal,'m');DEN.forEach(function(d){var q=p.x.q[d]||0;sum+=q;td(tr,q?String(q):'-',q?'':'mut')});td(tr,String(sum),'m');td(tr,p.o.rej.note||'-','mut');b.appendChild(tr)});
+}
+
+function setTab(t){tab=t;$('pIn').classList.toggle('hidden',t!=='in');$('pOut').classList.toggle('hidden',t!=='out');$('tIn').classList.toggle('on',t==='in');$('tOut').classList.toggle('on',t==='out');$(t==='in'?'dIn':'dOut').classList.remove('show')}
+
+/* Alert 45 วินาที */
+function showAlert(kind,title,desc){
+ var a=$('alert'),pg=$('aPg');clearTimeout(alertTimer);
+ a.className=kind==='out'?'out':'';$('aTitle').textContent=title;$('aDesc').textContent=desc;
+ pg.className='pg';void pg.offsetWidth;a.classList.add('show');pg.classList.add('run');
+ alertTimer=setTimeout(hideAlert,ALERT_MS);
+}
+function hideAlert(){clearTimeout(alertTimer);$('alert').classList.remove('show')}
+function announce(ni,no){
+ var n=ni.length+no.length;if(!n)return;
+ if(ni.length)if(tab!=='in')$('dIn').classList.add('show');
+ if(no.length)if(tab!=='out')$('dOut').classList.add('show');
+ if(n===1){var r=ni[0]||no[0],o=!!no.length,x=[];
+  if(o){if(r.rep)x.push('Repair'+(r.rep.type?' '+r.rep.type:''));if(r.rej)x.push('Reject '+sums(r)+' ใบ')}
+  showAlert(o?'out':'in',(o?'Check-out':'Check-in')+' ใหม่ • '+r.s,'ตู้ '+r.m+(LOC[r.m]?' '+LOC[r.m]:'')+' เวลา '+r.t+(x.length?' • '+x.join(' + '):''))}
+ else{var p=[];if(ni.length)p.push('Check-in '+ni.length);if(no.length)p.push('Check-out '+no.length);
+  showAlert(no.length&&!ni.length?'out':'in','มีรายการใหม่ '+n+' รายการ',p.join(' • '))}
+}
+
+/* ดึงข้อมูลจาก Apps Script */
+function api(p){return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(p)}).then(function(r){return r.text()}).then(function(t){try{return JSON.parse(t)}catch(e){throw new Error('API ตอบกลับไม่ใช่ JSON (ตรวจการ Deploy / สิทธิ์ Anyone)')}})}
+function setErr(t){$('err').textContent=t||''}
+function showLogin(msg){$('app').classList.add('hidden');$('login').classList.remove('hidden');$('errL').textContent=msg||'';$('errL').style.cssText='font-size:13px;color:var(--rej);margin-bottom:8px;min-height:18px';$('pinIn').value='';setTimeout(function(){$('pinIn').focus()},50)}
+function showApp(){$('login').classList.add('hidden');$('app').classList.remove('hidden')}
+function load(){
+ if(busy||!pin||document.hidden)return;busy=true;var d=$('dateSel').value||today();
+ api({action:'dashboard',pin:pin,from:d,to:d}).then(function(res){
+  if(!res.ok){if(/PIN/.test(res.error||'')&&!/ยังไม่ได้ตั้ง/.test(res.error)){pin='';try{sessionStorage.removeItem(PK)}catch(e){}showLogin(res.error);return}setErr(res.error+' (ถ้าเพิ่งแก้ Code.gs ให้ Deploy เป็น New version)');return}
+  setErr('');LOC=res.locations||{};
+  var ri=(res.inRows||[]).map(parseIn),ro=(res.outRows||[]).map(parseOut),ni=[],no=[];
+  if(seen===null||seenDate!==d){seen={};seenDate=d;nuMap={};ri.concat(ro).forEach(function(r){seen[r.k]=1})}
+  else{var exp=Date.now()+ALERT_MS;ri.forEach(function(r){if(!seen[r.k]){seen[r.k]=1;nuMap[r.k]=exp;ni.push(r)}});ro.forEach(function(r){if(!seen[r.k]){seen[r.k]=1;nuMap[r.k]=exp;no.push(r)}})}
+  ri.concat(ro).forEach(function(r){r.nu=nuMap[r.k]||0});
+  rowsIn=ri;rowsOut=ro;render();$('live').textContent='อัปเดตล่าสุด '+clock();
+  if(ni.length||no.length){announce(ni,no);setTimeout(render,ALERT_MS+300)}
+ }).catch(function(e){setErr('เชื่อมต่อไม่ได้: '+(e&&e.message?e.message:e))}).then(function(){busy=false})
+}
+
+$('login').onsubmit=function(e){e.preventDefault();var v=$('pinIn').value.trim();if(!v)return;pin=v;try{sessionStorage.setItem(PK,v)}catch(x){}showApp();setErr('');$('live').textContent='กำลังโหลด…';load()};
+$('out').onclick=function(){pin='';seen=null;try{sessionStorage.removeItem(PK)}catch(e){}hideAlert();showLogin('')};
+$('tIn').onclick=$('tOut').onclick=function(){setTab(this.dataset.t)};
+$('aX').onclick=hideAlert;
+['qIn','fIn','qOut','fOut'].forEach(function(i){$(i).oninput=$(i).onchange=render});
+$('dateSel').value=today();$('dateSel').onchange=function(){seen=null;rowsIn=[];rowsOut=[];render();load()};
+document.addEventListener('visibilitychange',function(){if(!document.hidden)load()});
+setInterval(load,POLL_MS);
+if(pin){showApp();render();load()}else showLogin('');
+</script>
+</body>
+</html>
