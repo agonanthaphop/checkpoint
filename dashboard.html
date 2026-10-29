@@ -113,7 +113,7 @@ tr.new td{background:var(--hl)}
   </div>
   <div class="card">
     <h2>Reject <span class="cnt" id="hRej"></span></h2>
-    <div class="wrap"><table><thead><tr><th>เวลา</th><th>Staff ID</th><th>ตู้</th><th>Reject Seal (Old//New)</th><th>Seal Reject</th><th>1,000</th><th>500</th><th>100</th><th>Reject</th><th>รวม (ใบ)</th><th>รายละเอียด</th></tr></thead><tbody id="bRej"></tbody></table></div>
+    <div class="wrap"><table><thead><tr><th>เวลา</th><th>Staff ID</th><th>ตู้</th><th>Reject Seal (Old//New)</th><th>Seal Reject</th><th>1,000</th><th>500</th><th>100</th><th>รวม (ใบ)</th><th>รายละเอียด</th></tr></thead><tbody id="bRej"></tbody></table></div>
   </div>
 </div>
 <div class="note">ดึงข้อมูลอัตโนมัติทุก 8 วินาที</div>
@@ -121,7 +121,7 @@ tr.new td{background:var(--hl)}
 </main>
 
 <script>
-var API_URL='https://script.google.com/macros/s/AKfycbxHljP3m5U9fVjT2nxHSjd3KeC1Z20DkJfO66sH7EyrCGj-cegjQA7aUbkOU8T2K-_k/exec';
+var API_URL='https://script.google.com/macros/s/AKfycbxVUzeLUAxIpFqFRwiLDRlP3MetSQXRkn7uqAWL5uJe1-WZZlTmbK9S8K15Se8PWKSOuQ/exec';
 var POLL_MS=8000,ALERT_MS=45000,DEN=[1000,500,100],PK='cp.dash.pin';
 var $=function(i){return document.getElementById(i)};
 var tab='in',alertTimer=null,busy=false,pin='',seen=null,seenDate='',nuMap={},LOC={},rowsIn=[],rowsOut=[];
@@ -146,13 +146,13 @@ function parseRep(a){var g={1000:strip(a[8]),500:strip(a[9]),100:strip(a[10])},t
  if(!type&&!g[1000]&&!g[500]&&!g[100]&&!note)return null;return{type:type,g:g,note:note}}
 function parseRej(a){
  var pairs=sp(a[11]).replace(/RJ\s*:\s*/gi,''),list=[];
- sp(a[12]).split(/\s*,\s*/).forEach(function(p){var m=p.match(/^(.+?)\s*:\s*(\d+)\*(\d+)\*(\d+)(?:\*(\d+))?/);if(m)list.push({seal:m[1],q:{1000:+m[2],500:+m[3],100:+m[4],R:+(m[5]||0)}})});
+ sp(a[12]).split(/\s*,\s*/).forEach(function(p){var m=p.match(/^(.+?)\s*:\s*(\d+)\*(\d+)\*(\d+)/);if(m)list.push({seal:m[1],q:{1000:+m[2],500:+m[3],100:+m[4]}})});
  var note=sp(a[13]);if(!pairs&&!list.length&&!note)return null;
  return{pairs:pairs,seals:list,note:note}}
 function parseOut(a){return{k:'o|'+a[2]+'|'+a[3]+'|'+sp(a[0])+'|'+sp(a[5]),t:sp(a[3]),s:sp(a[0]),m:sp(a[5]),rep:parseRep(a),rej:parseRej(a)}}
 
 function inStatus(r){return rowsOut.some(function(o){return o.s===r.s&&o.m===r.m&&o.t>=r.t})?'done':'work'}
-function sums(o){var t=0;if(o.rej)o.rej.seals.forEach(function(x){DEN.forEach(function(d){t+=x.q[d]||0});t+=x.q.R||0});return t}
+function sums(o){var t=0;if(o.rej)o.rej.seals.forEach(function(x){DEN.forEach(function(d){t+=x.q[d]||0})});return t}
 function outStatus(o){return o.rep&&o.rej?'both':o.rep?'rep':o.rej?'rej':'none'}
 function kpi(box,items){box.innerHTML='';items.forEach(function(i){var k=el('div','kpi');k.appendChild(el('span',null,i[0]));k.appendChild(el('b',null,String(i[1])));box.appendChild(k)})}
 
@@ -172,7 +172,7 @@ function render(){
  if(!rp.length)empty(b,8);rp.forEach(function(o){var tr=el('tr',isNew(o)?'new':'');td(tr,o.t);td(tr,o.s);td(tr,mcell(o));td(tr,o.rep.type?chip(o.rep.type,'c-rep'):'-');DEN.forEach(function(d){td(tr,o.rep.g[d]||'-',o.rep.g[d]?'':'mut')});td(tr,o.rep.note||'-','mut');b.appendChild(tr)});
  var rj=[];rowsOut.slice().reverse().forEach(function(o){if(!o.rej)return;if(o.rej.seals.length)o.rej.seals.forEach(function(x){rj.push({o:o,x:x})});else rj.push({o:o,x:{seal:'-',q:{}}})});
  $('hRej').textContent=rj.filter(function(p){return p.x.seal!=='-'}).length+' ถุง';b=$('bRej');b.innerHTML='';
- if(!rj.length)empty(b,11);rj.forEach(function(p){var tr=el('tr',isNew(p.o)?'new':''),sum=0;td(tr,p.o.t);td(tr,p.o.s);td(tr,mcell(p.o));td(tr,p.o.rej.pairs||'-','mut');td(tr,p.x.seal,'m');DEN.concat(['R']).forEach(function(k){var q=p.x.q[k]||0;sum+=q;td(tr,q?String(q):'-',q?'':'mut')});td(tr,String(sum),'m');td(tr,p.o.rej.note||'-','mut');b.appendChild(tr)});
+ if(!rj.length)empty(b,10);rj.forEach(function(p){var tr=el('tr',isNew(p.o)?'new':''),sum=0;td(tr,p.o.t);td(tr,p.o.s);td(tr,mcell(p.o));td(tr,p.o.rej.pairs||'-','mut');td(tr,p.x.seal,'m');DEN.forEach(function(k){var q=p.x.q[k]||0;sum+=q;td(tr,q?String(q):'-',q?'':'mut')});td(tr,String(sum),'m');td(tr,p.o.rej.note||'-','mut');b.appendChild(tr)});
 }
 
 function setTab(t){tab=t;$('pIn').classList.toggle('hidden',t!=='in');$('pOut').classList.toggle('hidden',t!=='out');$('tIn').classList.toggle('on',t==='in');$('tOut').classList.toggle('on',t==='out');$(t==='in'?'dIn':'dOut').classList.remove('show')}
