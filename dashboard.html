@@ -82,6 +82,7 @@ tr.new td{background:var(--hl)}
   <div class="grow"><h1>Check-Point ATM Operations</h1><div class="sub">Dashboard</div></div>
   <span class="live" id="live">กำลังโหลด…</span>
   <input type="date" id="dateSel" aria-label="เลือกวันที่">
+  <button class="btn" id="kiosk" title="เปิดจอค้างไว้ ไม่ดับ จำ PIN ในเครื่องนี้ และรีโหลดอัตโนมัติ">โหมดจอตลอด: ปิด</button>
   <button class="btn" id="out">ออกจากระบบ</button>
 </header>
 <div id="err" role="status" aria-live="polite"></div>
@@ -125,7 +126,9 @@ var API_URL='https://script.google.com/macros/s/AKfycbxVUzeLUAxIpFqFRwiLDRlP3Met
 var POLL_MS=8000,ALERT_MS=45000,DEN=[1000,500,100],PK='cp.dash.pin';
 var $=function(i){return document.getElementById(i)};
 var tab='in',alertTimer=null,busy=false,pin='',seen=null,seenDate='',nuMap={},LOC={},rowsIn=[],rowsOut=[];
-try{pin=sessionStorage.getItem(PK)||''}catch(e){}
+var KK='cp.dash.kiosk',kiosk=false,wl=null,lastToday=today();
+try{kiosk=localStorage.getItem(KK)==='1'}catch(e){}
+try{pin=sessionStorage.getItem(PK)||(kiosk?localStorage.getItem(PK):'')||''}catch(e){}
 
 function clock(){var d=new Date(),p=function(n){return String(n).padStart(2,'0')};return p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds())}
 function today(){return new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Bangkok'})}
@@ -202,10 +205,19 @@ function diag(){fetch(API_URL).then(function(r){return r.json()}).then(function(
 function setErr(t){$('err').textContent=t||'';if(!$('login').classList.contains('hidden'))$('errL').textContent=t||''}
 function showLogin(msg){$('app').classList.add('hidden');$('login').classList.remove('hidden');$('errL').textContent=msg||'';$('errL').style.cssText='font-size:13px;color:var(--rej);margin-bottom:8px;min-height:18px';$('pinIn').value='';setTimeout(function(){$('pinIn').focus()},50)}
 function showApp(){$('login').classList.add('hidden');$('app').classList.remove('hidden')}
+/* โหมดจอตลอด: กันจอดับ + จำ PIN ในเครื่อง + รีโหลดทุก 6 ชม. */
+function keepAwake(){if(!kiosk||wl||!navigator.wakeLock||document.hidden)return;navigator.wakeLock.request('screen').then(function(l){wl=l;l.addEventListener('release',function(){wl=null})}).catch(function(){})}
+function releaseAwake(){if(wl){wl.release().catch(function(){});wl=null}}
+function setKiosk(on){kiosk=on;try{if(on){localStorage.setItem(KK,'1');if(pin)localStorage.setItem(PK,pin)}else{localStorage.removeItem(KK);localStorage.removeItem(PK)}}catch(e){}
+ $('kiosk').textContent='โหมดจอตลอด: '+(on?'เปิด':'ปิด');
+ if(on){keepAwake();var r=document.documentElement;if(r.requestFullscreen&&!document.fullscreenElement)r.requestFullscreen().catch(function(){})}
+ else{releaseAwake();if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(function(){})}}
 function load(){
- if(busy||!pin||document.hidden)return;busy=true;var d=$('dateSel').value||today();
+ if(busy||!pin||document.hidden)return;
+ var t0=today();if(t0!==lastToday){if($('dateSel').value===lastToday){$('dateSel').value=t0;seen=null;rowsIn=[];rowsOut=[]}lastToday=t0}
+ busy=true;var d=$('dateSel').value||today();
  api({action:'dashboard',pin:pin,from:d,to:d}).then(function(res){
-  if(!res.ok){if(/PIN/.test(res.error||'')&&!/ยังไม่ได้ตั้ง/.test(res.error)){pin='';try{sessionStorage.removeItem(PK)}catch(e){}showLogin(res.error);return}if(/คำขอไม่ถูกต้อง/.test(res.error||'')){diag();return}setErr(res.error);return}
+  if(!res.ok){if(/PIN/.test(res.error||'')&&!/ยังไม่ได้ตั้ง/.test(res.error)){pin='';try{sessionStorage.removeItem(PK);localStorage.removeItem(PK)}catch(e){}showLogin(res.error);return}if(/คำขอไม่ถูกต้อง/.test(res.error||'')){diag();return}setErr(res.error);return}
   setErr('');showApp();LOC=res.locations||{};
   var ri=(res.inRows||[]).map(parseIn),ro=(res.outRows||[]).map(parseOut),ni=[],no=[];
   if(seen===null||seenDate!==d){seen={};seenDate=d;nuMap={};ri.concat(ro).forEach(function(r){seen[r.k]=1})}
@@ -216,13 +228,16 @@ function load(){
  }).catch(function(e){setErr('เชื่อมต่อไม่ได้: '+(e&&e.message?e.message:e))}).then(function(){busy=false})
 }
 
-$('login').onsubmit=function(e){e.preventDefault();var v=$('pinIn').value.trim();if(!v)return;pin=v;try{sessionStorage.setItem(PK,v)}catch(x){}$('errL').textContent='กำลังตรวจสอบ PIN…';load()};
-$('out').onclick=function(){pin='';seen=null;try{sessionStorage.removeItem(PK)}catch(e){}hideAlert();showLogin('')};
+$('login').onsubmit=function(e){e.preventDefault();var v=$('pinIn').value.trim();if(!v)return;pin=v;try{sessionStorage.setItem(PK,v);if(kiosk)localStorage.setItem(PK,v)}catch(x){}$('errL').textContent='กำลังตรวจสอบ PIN…';load()};
+$('out').onclick=function(){setKiosk(false);pin='';seen=null;try{sessionStorage.removeItem(PK)}catch(e){}hideAlert();showLogin('')};
+$('kiosk').onclick=function(){setKiosk(!kiosk)};
 $('tIn').onclick=$('tOut').onclick=function(){setTab(this.dataset.t)};
 $('aX').onclick=hideAlert;
 ['qIn','fIn','qOut','fOut'].forEach(function(i){$(i).oninput=$(i).onchange=render});
 $('dateSel').value=today();$('dateSel').onchange=function(){seen=null;rowsIn=[];rowsOut=[];render();load()};
-document.addEventListener('visibilitychange',function(){if(!document.hidden)load()});
+document.addEventListener('visibilitychange',function(){if(!document.hidden){keepAwake();load()}});
+setInterval(function(){if(kiosk)location.reload()},6*36e5);
+$('kiosk').textContent='โหมดจอตลอด: '+(kiosk?'เปิด':'ปิด');keepAwake();
 setInterval(load,POLL_MS);
 if(pin){showLogin('กำลังตรวจสอบ PIN…');load()}else showLogin('');
 </script>
