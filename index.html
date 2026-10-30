@@ -82,6 +82,9 @@ li button:hover:not(:disabled){background:rgba(217,54,69,.08);box-shadow:none}
 @media(min-width:768px){main{padding-top:38px}.card{padding:25px}.topbar{margin-bottom:26px}}
 @media(max-width:380px){main{padding:17px 11px 30px}.card{padding:16px;border-radius:18px}.row{gap:8px}button{padding:12px 8px;font-size:14px}h1{font-size:21px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+#camBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom));z-index:60;display:flex;gap:6px;align-items:center;background:rgba(15,20,32,.94);border:1px solid #3a4560;border-radius:999px;padding:6px 8px;color:#fff;font-size:12px;max-width:calc(100% - 16px)}
+#camBar button{border:1px solid #556;background:#1c2438;color:#fff;border-radius:999px;padding:8px 12px;font-size:13px;white-space:nowrap}
+#camTxt{padding:0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -169,6 +172,7 @@ li button:hover:not(:disabled){background:rgba(217,54,69,.08);box-shadow:none}
 <div class="footer">Check-Point • ATM Operations</div>
 </main>
 
+<div id="camBar" class="hidden"><button id="camSw" type="button">🔄 สลับกล้อง</button><button id="camZm" type="button">🔍 ซูม</button><span id="camTxt"></span></div>
 <script src="html5-qrcode.min.js"></script>
 <script>
 if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
@@ -194,24 +198,39 @@ var gen=0;
 function ensureCamera(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return Promise.reject({name:'NoMediaDevices'});return withTimeout(navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}),45000).then(function(st){st.getTracks().forEach(function(t){t.stop()});return new Promise(function(r){setTimeout(r,700)})})}
 function withTimeout(p,ms){return new Promise(function(res,rej){var t=setTimeout(function(){rej(new Error('timeout'))},ms);p.then(function(v){clearTimeout(t);res(v)},function(e){clearTimeout(t);rej(e)})})}
 function startScan(elId,mode){return ensureCamera().then(function(){return startScanInner(elId,mode)})}
-/* โฟกัสกล้อง: ขอ autofocus แบบต่อเนื่อง + แตะที่ภาพเพื่อโฟกัสใหม่ */
-function camFocusModes(sc){try{var c=sc.getRunningTrackCapabilities&&sc.getRunningTrackCapabilities();var f=c&&c.focusMode;return f&&f.indexOf?f:[]}catch(e){return[]}}
-function tuneCam(sc){var f=camFocusModes(sc);if(f.indexOf('continuous')>=0)sc.applyVideoConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){})}
-function refocus(sc){var f=camFocusModes(sc);if(f.indexOf('single-shot')>=0){sc.applyVideoConstraints({advanced:[{focusMode:'single-shot'}]}).then(function(){setTimeout(function(){if(state.scanner===sc)tuneCam(sc)},1200)}).catch(function(){})}else tuneCam(sc)}
+/* กล้อง: โฟกัสต่อเนื่อง, แตะโฟกัสใหม่, สลับกล้องหลัง, ซูม */
+var CAMK='cp.camId',curZoom=0,zoomIdx=0;
+function camSaved(){try{return localStorage.getItem(CAMK)||''}catch(e){return''}}
+function camCons(w,h){var id=camSaved(),c={width:{ideal:w},height:{ideal:h}};if(id)c.deviceId={exact:id};else c.facingMode='environment';return c}
+function camCaps(sc){try{return sc.getRunningTrackCapabilities()||{}}catch(e){return{}}}
+function camFocusModes(sc){var f=camCaps(sc).focusMode;return f&&f.indexOf?f:[]}
+function camAdv(mode){var a=[];if(curZoom)a.push({zoom:curZoom});if(mode)a.push({focusMode:mode});return a}
+function tuneCam(sc){if(camFocusModes(sc).indexOf('continuous')>=0)sc.applyVideoConstraints({advanced:camAdv('continuous')}).catch(function(){})}
+function refocus(sc){var f=camFocusModes(sc);if(f.indexOf('single-shot')>=0){sc.applyVideoConstraints({advanced:camAdv('single-shot')}).then(function(){setTimeout(function(){if(state.scanner===sc)tuneCam(sc)},1200)}).catch(function(){})}else tuneCam(sc)}
+function camInfo(sc){var f=camFocusModes(sc),af=f.indexOf('continuous')>=0?'AF ต่อเนื่อง':(f.length?'AF แตะ':'ไม่มี AF'),id='';try{id=sc.getRunningTrackSettings().deviceId||''}catch(e){}
+ Html5Qrcode.getCameras().then(function(l){var i=0;l.forEach(function(c,k){if(c.id===id)i=k});$('camTxt').textContent='กล้อง '+(i+1)+'/'+l.length+' • '+af+(curZoom?' • ซูม '+curZoom:'')}).catch(function(){$('camTxt').textContent=af})}
+function camBar(sc,elId,mode){state.lastScan={elId:elId,mode:mode};curZoom=0;zoomIdx=0;$('camBar').classList.remove('hidden');camInfo(sc)}
 document.addEventListener('click',function(e){var r=e.target&&e.target.closest&&e.target.closest('.reader');if(r&&state.scanner)refocus(state.scanner)});
+$('camSw').onclick=function(){Html5Qrcode.getCameras().then(function(l){l=l.filter(function(c){return !/front|user|selfie|หน้า/i.test(c.label||'')});if(l.length<2){$('camTxt').textContent='มีกล้องหลังตัวเดียว';return}
+ var cur=camSaved(),sc=state.scanner;try{if(sc)cur=sc.getRunningTrackSettings().deviceId||cur}catch(e){}
+ var i=0;l.forEach(function(c,k){if(c.id===cur)i=k});try{localStorage.setItem(CAMK,l[(i+1)%l.length].id)}catch(e){}
+ var ls=state.lastScan;if(ls){$('camTxt').textContent='กำลังสลับกล้อง…';stopScan().then(function(){return startScanInner(ls.elId,ls.mode)}).catch(function(e){if(e&&e.message==='stale')return;$('camTxt').textContent='สลับไม่สำเร็จ'})}}).catch(function(){$('camTxt').textContent='อ่านรายการกล้องไม่ได้'})};
+$('camZm').onclick=function(){var sc=state.scanner;if(!sc)return;var c=camCaps(sc);if(!c.zoom){$('camTxt').textContent='กล้องนี้ไม่รองรับซูม';return}
+ var mn=c.zoom.min||1,mx=c.zoom.max||1,st=[0,Math.min(2,mx),Math.min(3,mx)];zoomIdx=(zoomIdx+1)%3;curZoom=st[zoomIdx]>mn?st[zoomIdx]:0;
+ var f=camFocusModes(sc).indexOf('continuous')>=0?'continuous':'';sc.applyVideoConstraints({advanced:curZoom?camAdv(f):[{zoom:mn}].concat(f?[{focusMode:f}]:[])}).then(function(){camInfo(sc)}).catch(function(){$('camTxt').textContent='ซูมไม่สำเร็จ'})};
 function startScanInner(elId,mode){
  var my=++gen;state.busy=false;var isSeal=mode!=='machine';
  var box=isSeal?function(w){var b=Math.floor(w*.9);return{width:b,height:Math.floor(b*.6)}}:function(w,h){var m=Math.floor(Math.min(w,h)*.85);return{width:m,height:m}};
  var adv={experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false};
  if(typeof Html5QrcodeSupportedFormats!=='undefined'){var F=Html5QrcodeSupportedFormats;adv.formatsToSupport=(isSeal?[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.DATA_MATRIX]:[F.QR_CODE]).filter(function(x){return x!==undefined&&x!==null})}
  var cb=mode==='denom'?onDenomScan:mode==='reject'?onRejScan:onScan;
- var begin=function(conf,c,cam){var sc=new Html5Qrcode(elId,conf);state.scanner=sc;return sc.start(cam||{facingMode:'environment'},c,cb,function(){}).then(function(){if(state.scanner!==sc){sc.stop().catch(function(){});throw new Error('stale')}tuneCam(sc);return sc})};
- return withTimeout(begin(adv,{fps:15,qrbox:box,videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}}),8000)
+ var begin=function(conf,c,cam){var sc=new Html5Qrcode(elId,conf);state.scanner=sc;return sc.start(cam||{facingMode:'environment'},c,cb,function(){}).then(function(){if(state.scanner!==sc){sc.stop().catch(function(){});throw new Error('stale')}tuneCam(sc);camBar(sc,elId,mode);return sc})};
+ return withTimeout(begin(adv,{fps:15,qrbox:box,videoConstraints:camCons(1920,1080)}),8000)
  .catch(function(){return stopScan().then(function(){return withTimeout(begin({verbose:false},{fps:10,qrbox:box,videoConstraints:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}}),8000)})})
  .catch(function(){return stopScan().then(function(){return Html5Qrcode.getCameras()}).then(function(cams){if(!cams||!cams.length)throw 'ไม่พบกล้อง';var back=cams.filter(function(c){return /back|rear|environment|หลัง/i.test(c.label)});return withTimeout(begin({verbose:false},{fps:10,qrbox:box},(back[0]||cams[cams.length-1]).id),8000)})})
  .then(function(sc){if(my!==gen){sc.stop().catch(function(){});throw new Error('stale')}return sc})
 }
-function stopScan(){gen++;var s=state.scanner;state.scanner=null;if(!s)return Promise.resolve();return s.stop().catch(function(){}).then(function(){try{s.clear()}catch(e){}})}
+function stopScan(){gen++;var cbx=$('camBar');if(cbx)cbx.classList.add('hidden');var s=state.scanner;state.scanner=null;if(!s)return Promise.resolve();return s.stop().catch(function(){}).then(function(){try{s.clear()}catch(e){}})}
 function camErr(e){var raw=typeof e==='string'?e:String(e&&(e.name||e.message)||'');var tip=/NotAllowed|Permission|denied/i.test(raw)?'สิทธิ์กล้องถูกปิดกั้น: เปิดสิทธิ์กล้องให้เบราว์เซอร์/เว็บนี้ในตั้งค่าเครื่อง':/NotReadable|Could not start|in use|Starting video/i.test(raw)?'กล้องถูกใช้งานอยู่: ปิดแท็บอื่น/แอปที่ใช้กล้อง แล้วกด "เปิดกล้องใหม่"':/NotFound|ไม่พบกล้อง/i.test(raw)?'ไม่พบกล้องในเครื่องนี้':/NoMediaDevices/.test(raw)?'เบราว์เซอร์นี้เปิดกล้องไม่ได้ (อาจเป็นเบราว์เซอร์ในแอป) กรุณาเปิดด้วย Chrome หรือ Safari':/^timeout$/.test(raw)?'ไม่มีการตอบสนองจากกล้อง: ลองเปิดด้วย Chrome หรือเปิดสิทธิ์กล้องในตั้งค่าเครื่อง':'เปิดกล้องไม่ได้ ลองกด "เปิดกล้องใหม่" หรือใช้ Chrome';return tip+' ['+raw.slice(0,140)+']'}
 function beginMachineScan(){msg('m2','กำลังขอสิทธิ์กล้อง… ถ้ามีหน้าต่างถาม ให้กด "อนุญาต"');startScan('reader','machine').then(function(){msg('m2','กำลังสแกน… เล็งกล้องไปที่ QR Code ของตู้')}).catch(function(e){if(e&&e.message==='stale')return;msg('m2',camErr(e),'err')})}
 function machineFromQr(text){var t=String(text||'').replace(/^\uFEFF/,'').trim();try{var o=JSON.parse(t);if(o&&typeof o==='object'){var k=['atmid','machineNumber','machine','terminal','id'];for(var i=0;i<k.length;i++)if(o[k[i]])return String(o[k[i]]).trim()}}catch(e){}var m=t.match(/atmid["'\u201C\u201D]?\s*[:=]\s*["'\u201C\u201D]?\s*([A-Za-z0-9\-_\/]+)/i);return m?m[1]:t}
