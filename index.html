@@ -174,7 +174,7 @@ li button:hover:not(:disabled){background:rgba(217,54,69,.08);box-shadow:none}
 
 <input id="photoIn" type="file" accept="image/*" capture="environment" hidden>
 <div id="photoHost" style="position:absolute;left:-9999px;top:0;width:320px;height:320px"></div>
-<div id="camBar" class="hidden"><button id="camSw" type="button">🔄 สลับกล้อง</button><button id="camZm" type="button">🔍 ซูม</button><button id="camPh" type="button">📷 ถ่ายรูป</button><button id="camMd" type="button"></button><span id="camTxt"></span></div>
+<div id="camBar" class="hidden"><button id="camSw" type="button">🔄 สลับกล้อง</button><button id="camZm" type="button">🔍 ซูม</button><button id="camPh" type="button">📷 ถ่ายรูป</button><span id="camTxt"></span></div>
 <script src="html5-qrcode.min.js"></script>
 <script>
 if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
@@ -211,8 +211,8 @@ function tuneCam(sc){if(camFocusModes(sc).indexOf('continuous')>=0)sc.applyVideo
 function refocus(sc){var f=camFocusModes(sc);if(f.indexOf('single-shot')>=0){sc.applyVideoConstraints({advanced:camAdv('single-shot')}).then(function(){setTimeout(function(){if(state.scanner===sc)tuneCam(sc)},1200)}).catch(function(){})}else tuneCam(sc)}
 function camList(){if(!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return Promise.reject('no');return navigator.mediaDevices.enumerateDevices().then(function(ds){return ds.filter(function(d){return d.kind==='videoinput'}).map(function(d){return{id:d.deviceId,label:d.label||''}})})}
 function camInfo(sc){var f=camFocusModes(sc),af=f.indexOf('continuous')>=0?'AF ต่อเนื่อง':(f.length?'AF แตะ':'ไม่มี AF'),id='';try{id=sc.getRunningTrackSettings().deviceId||''}catch(e){}
- camList().then(function(l){var i=0;l.forEach(function(c,k){if(c.id===id)i=k});$('camTxt').textContent='กล้อง '+(i+1)+'/'+l.length+' • '+af+(curZoom?' • ซูม '+curZoom:'')+' • r6'}).catch(function(){$('camTxt').textContent=af+' • r6'})}
-function camBar(sc,elId,mode){state.lastScan={elId:elId,mode:mode};curZoom=0;zoomIdx=0;$('camBar').classList.remove('hidden');$('camSw').classList.remove('hidden');$('camZm').classList.remove('hidden');mdLabel();camInfo(sc)}
+ camList().then(function(l){var i=0;l.forEach(function(c,k){if(c.id===id)i=k});$('camTxt').textContent='กล้อง '+(i+1)+'/'+l.length+' • '+af+(curZoom?' • ซูม '+curZoom:'')+' • r7'}).catch(function(){$('camTxt').textContent=af+' • r7'})}
+function camBar(sc,elId,mode){state.lastScan={elId:elId,mode:mode};curZoom=0;zoomIdx=0;$('camBar').classList.remove('hidden');$('camSw').classList.remove('hidden');$('camZm').classList.remove('hidden');camInfo(sc)}
 document.addEventListener('click',function(e){var r=e.target&&e.target.closest&&e.target.closest('.reader');if(r&&state.scanner)refocus(state.scanner)});
 $('camSw').onclick=function(){camList().then(function(l){l=l.filter(function(c){return !/front|user|selfie|หน้า/i.test(c.label||'')});if(l.length<2){$('camTxt').textContent='มีกล้องหลังตัวเดียว';return}
  var cur=camSaved(),sc=state.scanner;try{if(sc)cur=sc.getRunningTrackSettings().deviceId||cur}catch(e){}
@@ -224,12 +224,10 @@ $('camZm').onclick=function(){var sc=state.scanner;if(!sc)return;var c=camCaps(s
 /* สำรอง: ถ่ายรูปด้วยแอปกล้องของเครื่อง (โฟกัสดีกว่ากล้องในเบราว์เซอร์) แล้วอ่านค่าจากรูป */
 var photoPend=false,photoGot=false;
 var PHK='cp.photo',PHOTO_ONLY=false; /* true = ไม่ใช้กล้องสด ถ่ายรูปอย่างเดียว / false = ใช้กล้องสด และมีปุ่มถ่ายรูปสำรอง */
-function photoModeOn(){if(PHOTO_ONLY)return true;try{return localStorage.getItem(PHK)==='1'}catch(e){return false}}
-function setPhotoMode(on){try{localStorage.setItem(PHK,on?'1':'0')}catch(e){}}
-function mdLabel(){$('camMd').classList.toggle('hidden',PHOTO_ONLY);$('camMd').textContent=photoModeOn()?'🎥 โหมดสด':'📷 ถ่ายรูปตลอด'}
-function photoUi(txt){$('camBar').classList.remove('hidden');$('camSw').classList.add('hidden');$('camZm').classList.add('hidden');mdLabel();$('camTxt').textContent=txt||'โหมดถ่ายรูป • กด 📷 เพื่อถ่าย • r6'}
+function photoModeOn(){return PHOTO_ONLY}
+try{localStorage.removeItem(PHK)}catch(e){}
+function photoUi(txt){$('camBar').classList.remove('hidden');$('camSw').classList.add('hidden');$('camZm').classList.add('hidden');$('camTxt').textContent=txt||'โหมดถ่ายรูป • กด 📷 เพื่อถ่าย • r7'}
 function startPhoto(elId,mode){state.lastScan={elId:elId,mode:mode};var box=document.getElementById(elId);if(box)box.innerHTML='<div style="padding:28px 12px;text-align:center;color:#9aa4b5">โหมดถ่ายรูป<br>กดปุ่ม 📷 ด้านล่างเพื่อถ่าย QR / Seal</div>';photoUi();photoPend=true;photoGot=false;$('photoIn').value='';$('photoIn').click();return Promise.resolve()}
-$('camMd').onclick=function(){var ls=state.lastScan;if(!ls)return;if(photoModeOn()){setPhotoMode(false);var b=document.getElementById(ls.elId);if(b)b.innerHTML='';$('camSw').classList.remove('hidden');$('camZm').classList.remove('hidden');mdLabel();startScan(ls.elId,ls.mode).catch(function(){})}else{setPhotoMode(true);stopScan().then(function(){});startPhoto(ls.elId,ls.mode)}};
 function scanCbFor(mode){return mode==='denom'?onDenomScan:mode==='reject'?onRejScan:onScan}
 function decodePhoto(file,mode){
  return new Promise(function(res,rej){var img=new Image(),u=URL.createObjectURL(file);
@@ -241,8 +239,8 @@ function decodePhoto(file,mode){
 function resumeLive(ls,note){if(!ls)return;var w=document.getElementById(ls.elId);if(!w||w.offsetParent===null)return;startScanInner(ls.elId,ls.mode).then(function(){if(note)$('camTxt').textContent=note}).catch(function(){})}
 $('camPh').onclick=function(){var ls=state.lastScan;if(!ls)return;photoPend=true;photoGot=false;$('photoIn').value='';$('photoIn').click();if(!photoModeOn())stopScan()};
 $('photoIn').onchange=function(){var f=this.files&&this.files[0],ls=state.lastScan;if(!f||!ls)return;photoGot=true;photoPend=false;
- decodePhoto(f,ls.mode).then(function(text){state.busy=false;scanCbFor(ls.mode)(text);if(ls.mode!=='machine'){if(photoModeOn())photoUi('อ่านได้แล้ว • ถ่ายใบถัดไปได้เลย • r6');else setTimeout(function(){resumeLive(ls)},400)}})
- .catch(function(){if(photoModeOn())photoUi('อ่านรูปไม่ได้ ถ่ายใหม่ให้เห็น QR ชัดเต็มกรอบ • r6');else resumeLive(ls,'อ่านรูปไม่ได้ ถ่ายใหม่ให้เห็น QR ชัดเต็มกรอบ')})};
+ decodePhoto(f,ls.mode).then(function(text){state.busy=false;scanCbFor(ls.mode)(text);if(ls.mode!=='machine'){if(photoModeOn())photoUi('อ่านได้แล้ว • ถ่ายใบถัดไปได้เลย • r7');else setTimeout(function(){resumeLive(ls)},400)}})
+ .catch(function(){if(photoModeOn())photoUi('อ่านรูปไม่ได้ ถ่ายใหม่ให้เห็น QR ชัดเต็มกรอบ • r7');else resumeLive(ls,'อ่านรูปไม่ได้ ถ่ายใหม่ให้เห็น QR ชัดเต็มกรอบ')})};
 window.addEventListener('focus',function(){if(!photoPend)return;setTimeout(function(){if(photoPend&&!photoGot){photoPend=false;if(photoModeOn())photoUi();else resumeLive(state.lastScan)}},2500)});
 function startScanInner(elId,mode){
  var my=++gen;state.busy=false;var isSeal=mode!=='machine';
