@@ -172,7 +172,7 @@ li button:hover:not(:disabled){background:rgba(217,54,69,.08);box-shadow:none}
 <script src="html5-qrcode.min.js"></script>
 <script>
 if('serviceWorker' in navigator)window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
-var API_URL='https://script.google.com/macros/s/AKfycbySodq7WqjEWxH-vpXagSjjqXuZyZcTQOAPj86aMV1F5VrpiyktRoBV0l28717D6dMExA/exec';
+var API_URL='https://script.google.com/macros/s/AKfycbxn7r4ExesELWvqNrqgMWNbOKxbM0TBEdE_N-1p0qUcR0HTxrLEQoC3foajL_cmMznWEg/exec';
 var EXPECT_API='v14-in-out';
 var KEY='checkpoint.session.v2',SESSION_MS=12*36e5,TOKEN_MS=5*36e5,MAX_DENOM_SEALS=20,DENOMS=[1000,500,100],REPAIR_TYPES=['FLM','SLM','PM'];
 var STAFF_RE=/^[A-Za-z0-9\-_]{3,20}$/,MACHINE_RE=/^[A-Za-z0-9\-_\/]{1,30}$/,SEAL_RE=/^[A-Za-z0-9\-_\/.]{1,40}$/;
@@ -194,15 +194,20 @@ var gen=0;
 function ensureCamera(){if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)return Promise.reject({name:'NoMediaDevices'});return withTimeout(navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}),45000).then(function(st){st.getTracks().forEach(function(t){t.stop()});return new Promise(function(r){setTimeout(r,700)})})}
 function withTimeout(p,ms){return new Promise(function(res,rej){var t=setTimeout(function(){rej(new Error('timeout'))},ms);p.then(function(v){clearTimeout(t);res(v)},function(e){clearTimeout(t);rej(e)})})}
 function startScan(elId,mode){return ensureCamera().then(function(){return startScanInner(elId,mode)})}
+/* โฟกัสกล้อง: ขอ autofocus แบบต่อเนื่อง + แตะที่ภาพเพื่อโฟกัสใหม่ */
+function camFocusModes(sc){try{var c=sc.getRunningTrackCapabilities&&sc.getRunningTrackCapabilities();var f=c&&c.focusMode;return f&&f.indexOf?f:[]}catch(e){return[]}}
+function tuneCam(sc){var f=camFocusModes(sc);if(f.indexOf('continuous')>=0)sc.applyVideoConstraints({advanced:[{focusMode:'continuous'}]}).catch(function(){})}
+function refocus(sc){var f=camFocusModes(sc);if(f.indexOf('single-shot')>=0){sc.applyVideoConstraints({advanced:[{focusMode:'single-shot'}]}).then(function(){setTimeout(function(){if(state.scanner===sc)tuneCam(sc)},1200)}).catch(function(){})}else tuneCam(sc)}
+document.addEventListener('click',function(e){var r=e.target&&e.target.closest&&e.target.closest('.reader');if(r&&state.scanner)refocus(state.scanner)});
 function startScanInner(elId,mode){
  var my=++gen;state.busy=false;var isSeal=mode!=='machine';
  var box=isSeal?function(w){var b=Math.floor(w*.9);return{width:b,height:Math.floor(b*.6)}}:function(w,h){var m=Math.floor(Math.min(w,h)*.85);return{width:m,height:m}};
  var adv={experimentalFeatures:{useBarCodeDetectorIfSupported:true},verbose:false};
  if(typeof Html5QrcodeSupportedFormats!=='undefined'){var F=Html5QrcodeSupportedFormats;adv.formatsToSupport=(isSeal?[F.QR_CODE,F.CODE_128,F.CODE_39,F.EAN_13,F.EAN_8,F.ITF,F.DATA_MATRIX]:[F.QR_CODE]).filter(function(x){return x!==undefined&&x!==null})}
  var cb=mode==='denom'?onDenomScan:mode==='reject'?onRejScan:onScan;
- var begin=function(conf,c,cam){var sc=new Html5Qrcode(elId,conf);state.scanner=sc;return sc.start(cam||{facingMode:'environment'},c,cb,function(){}).then(function(){if(state.scanner!==sc){sc.stop().catch(function(){});throw new Error('stale')}return sc})};
+ var begin=function(conf,c,cam){var sc=new Html5Qrcode(elId,conf);state.scanner=sc;return sc.start(cam||{facingMode:'environment'},c,cb,function(){}).then(function(){if(state.scanner!==sc){sc.stop().catch(function(){});throw new Error('stale')}tuneCam(sc);return sc})};
  return withTimeout(begin(adv,{fps:15,qrbox:box,videoConstraints:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}}),8000)
- .catch(function(){return stopScan().then(function(){return withTimeout(begin({verbose:false},{fps:10,qrbox:box}),8000)})})
+ .catch(function(){return stopScan().then(function(){return withTimeout(begin({verbose:false},{fps:10,qrbox:box,videoConstraints:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}}),8000)})})
  .catch(function(){return stopScan().then(function(){return Html5Qrcode.getCameras()}).then(function(cams){if(!cams||!cams.length)throw 'ไม่พบกล้อง';var back=cams.filter(function(c){return /back|rear|environment|หลัง/i.test(c.label)});return withTimeout(begin({verbose:false},{fps:10,qrbox:box},(back[0]||cams[cams.length-1]).id),8000)})})
  .then(function(sc){if(my!==gen){sc.stop().catch(function(){});throw new Error('stale')}return sc})
 }
