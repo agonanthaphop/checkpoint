@@ -209,11 +209,12 @@ function camFocusModes(sc){var f=camCaps(sc).focusMode;return f&&f.indexOf?f:[]}
 function camAdv(mode){var a=[];if(curZoom)a.push({zoom:curZoom});if(mode)a.push({focusMode:mode});return a}
 function tuneCam(sc){if(camFocusModes(sc).indexOf('continuous')>=0)sc.applyVideoConstraints({advanced:camAdv('continuous')}).catch(function(){})}
 function refocus(sc){var f=camFocusModes(sc);if(f.indexOf('single-shot')>=0){sc.applyVideoConstraints({advanced:camAdv('single-shot')}).then(function(){setTimeout(function(){if(state.scanner===sc)tuneCam(sc)},1200)}).catch(function(){})}else tuneCam(sc)}
+function camList(){if(!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return Promise.reject('no');return navigator.mediaDevices.enumerateDevices().then(function(ds){return ds.filter(function(d){return d.kind==='videoinput'}).map(function(d){return{id:d.deviceId,label:d.label||''}})})}
 function camInfo(sc){var f=camFocusModes(sc),af=f.indexOf('continuous')>=0?'AF ต่อเนื่อง':(f.length?'AF แตะ':'ไม่มี AF'),id='';try{id=sc.getRunningTrackSettings().deviceId||''}catch(e){}
- Html5Qrcode.getCameras().then(function(l){var i=0;l.forEach(function(c,k){if(c.id===id)i=k});$('camTxt').textContent='กล้อง '+(i+1)+'/'+l.length+' • '+af+(curZoom?' • ซูม '+curZoom:'')}).catch(function(){$('camTxt').textContent=af})}
+ camList().then(function(l){var i=0;l.forEach(function(c,k){if(c.id===id)i=k});$('camTxt').textContent='กล้อง '+(i+1)+'/'+l.length+' • '+af+(curZoom?' • ซูม '+curZoom:'')}).catch(function(){$('camTxt').textContent=af})}
 function camBar(sc,elId,mode){state.lastScan={elId:elId,mode:mode};curZoom=0;zoomIdx=0;$('camBar').classList.remove('hidden');camInfo(sc)}
 document.addEventListener('click',function(e){var r=e.target&&e.target.closest&&e.target.closest('.reader');if(r&&state.scanner)refocus(state.scanner)});
-$('camSw').onclick=function(){Html5Qrcode.getCameras().then(function(l){l=l.filter(function(c){return !/front|user|selfie|หน้า/i.test(c.label||'')});if(l.length<2){$('camTxt').textContent='มีกล้องหลังตัวเดียว';return}
+$('camSw').onclick=function(){camList().then(function(l){l=l.filter(function(c){return !/front|user|selfie|หน้า/i.test(c.label||'')});if(l.length<2){$('camTxt').textContent='มีกล้องหลังตัวเดียว';return}
  var cur=camSaved(),sc=state.scanner;try{if(sc)cur=sc.getRunningTrackSettings().deviceId||cur}catch(e){}
  var i=0;l.forEach(function(c,k){if(c.id===cur)i=k});try{localStorage.setItem(CAMK,l[(i+1)%l.length].id)}catch(e){}
  var ls=state.lastScan;if(ls){$('camTxt').textContent='กำลังสลับกล้อง…';stopScan().then(function(){return startScanInner(ls.elId,ls.mode)}).catch(function(e){if(e&&e.message==='stale')return;$('camTxt').textContent='สลับไม่สำเร็จ'})}}).catch(function(){$('camTxt').textContent='อ่านรายการกล้องไม่ได้'})};
